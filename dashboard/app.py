@@ -121,10 +121,10 @@ app.layout = dbc.Container([
         ], width=8),
     ], className="mb-4"),
     
-    # BAMA-Specific Visualizations
-    dbc.Row([
-        dbc.Col([
-            html.H3("🌱 BAMA Sustainability Dashboard", className="text-center mb-3"),
+        # Industry-Specific Visualizations
+        dbc.Row([
+            dbc.Col([
+                html.H3("🌱 Fresh Supply Chain Sustainability Dashboard", className="text-center mb-3"),
             dcc.Graph(id='sustainability-dashboard')
         ], width=12),
     ], className="mb-4"),
@@ -810,7 +810,7 @@ def update_sustainability_dashboard(n):
                 )
                 
                 fig.update_layout(
-                    title="BAMA Sustainability Dashboard - Food Waste Reduction",
+                    title="Fresh Supply Chain Sustainability Dashboard - Food Waste Reduction",
                     showlegend=False,
                     height=600
                 )
@@ -824,7 +824,7 @@ def update_sustainability_dashboard(n):
     fig = go.Figure()
     fig.add_annotation(text="Sustainability data not available", 
                       xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
-    fig.update_layout(title="BAMA Sustainability Dashboard")
+    fig.update_layout(title="Fresh Supply Chain Sustainability Dashboard")
     return fig
 
 # Freshness Quality Monitoring
@@ -882,7 +882,7 @@ def update_freshness_monitor(n):
                 ))
                 
                 fig.update_layout(
-                    title="BAMA Real-time Freshness Monitoring",
+                    title="Fresh Supply Chain Real-time Freshness Monitoring",
                     xaxis_title="Warehouse",
                     yaxis_title="Quality Score",
                     yaxis2=dict(title="Temperature (°C)", overlaying="y", side="right"),
@@ -898,7 +898,7 @@ def update_freshness_monitor(n):
     fig = go.Figure()
     fig.add_annotation(text="Freshness data not available", 
                       xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
-    fig.update_layout(title="BAMA Freshness Monitor")
+    fig.update_layout(title="Fresh Supply Chain Freshness Monitor")
     return fig
 
 # Business Impact Dashboard
@@ -986,7 +986,7 @@ def update_business_impact(n):
                     )
                 
                 fig.update_layout(
-                    title="BAMA Business Impact Dashboard - Data Science ROI",
+                    title="Fresh Supply Chain Business Impact Dashboard - Data Science ROI",
                     height=400
                 )
                 
@@ -999,7 +999,7 @@ def update_business_impact(n):
     fig = go.Figure()
     fig.add_annotation(text="Business impact data not available", 
                       xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
-    fig.update_layout(title="BAMA Business Impact Dashboard")
+    fig.update_layout(title="Fresh Supply Chain Business Impact Dashboard")
     return fig
 
 # Run the dashboard

@@ -1,12 +1,12 @@
 # 🥬 Fresh Supply Chain Intelligence System
 
-**Complete Industry-Standard Implementation for BAMA Data Scientist Position**
+**Complete Industry-Standard Implementation for Food Industry Data Science**
 
-A comprehensive data science solution for food waste prediction and supply chain optimization, specifically designed for BAMA's fresh produce operations in Norway and the Nordic region.
+A comprehensive data science solution for food waste prediction and supply chain optimization, designed for fresh produce operations in the Nordic region.
 
 ## 🎯 Project Overview
 
-This project demonstrates all the key skills required for the BAMA Data Scientist position:
+This project demonstrates advanced data science skills for the food industry:
 
 - **Python & SQL** - Core data processing and database operations
 - **Machine Learning** - Computer vision, time series forecasting, and optimization
@@ -53,7 +53,7 @@ Fresh Supply Chain Intelligence System
 
 ```bash
 git clone <repository-url>
-cd Bama
+cd Fresh-Supply-Chain-Intelligence
 cp env.example .env
 # Edit .env with your configuration
 ```
@@ -167,7 +167,7 @@ POST /api/v1/optimize/distribution
 
 ### Project Structure
 ```
-Bama/
+Fresh-Supply-Chain-Intelligence/
 ├── config/                 # Configuration files
 ├── data/                   # Data loading and schema
 ├── models/                 # ML models and algorithms
@@ -212,13 +212,13 @@ mypy .
 - **Database**: Optimized for time-series queries
 - **Caching**: Redis for frequently accessed data
 
-## 🌍 BAMA Integration
+## 🌍 Industry Integration
 
-### Norwegian Market Focus
+### Nordic Market Focus
 - **Warehouses**: Oslo, Bergen, Trondheim, Stockholm, Copenhagen
 - **Products**: Fresh fruits and vegetables
 - **Compliance**: Norwegian food safety standards
-- **Sustainability**: BAMA's environmental goals
+- **Sustainability**: Environmental impact reduction goals
 
 ### Business Alignment
 - **Mission**: "En sunnere og ferskere framtid"
@@ -275,16 +275,16 @@ mypy .
 - **Examples**: Sample implementations
 
 ### Contact
-- **Email**: data-science@bama.no
+- **Email**: contact@freshchain-ai.com
 - **Slack**: #fresh-supply-intelligence
 - **GitHub**: Issues and discussions
 
 ## 📄 License
 
-This project is proprietary to BAMA Gruppen AS and is intended for evaluation purposes only.
+This project is a demonstration of advanced data science capabilities for the food industry.
 
 ---
 
-**Built with ❤️ for BAMA's Data Science Team**
+**Built with ❤️ for the Food Industry Data Science Community**
 
 *Demonstrating expertise in Python, SQL, Machine Learning, Statistics, and Business Intelligence for the fresh produce industry.*
