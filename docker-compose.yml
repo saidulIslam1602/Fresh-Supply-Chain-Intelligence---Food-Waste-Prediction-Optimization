@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fresh_supply_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./data/sql_server_schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - fresh_supply_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: fresh_supply_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fresh_supply_network
+
+  # FastAPI Application
+  api:
+    build: .
+    container_name: fresh_supply_api
+    ports:
+      - "8000:8000"
+    environment:
+      - SQL_SERVER=sqlserver
+      - SQL_DATABASE=FreshSupplyChain
+      - SQL_USERNAME=sa
+      - SQL_PASSWORD=YourStrongPassword123!
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - sqlserver
+      - redis
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    networks:
+      - fresh_supply_network
+
+  # Jupyter Notebook for Development
+  jupyter:
+    build: .
+    container_name: fresh_supply_jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - SQL_SERVER=sqlserver
+      - SQL_DATABASE=FreshSupplyChain
+      - SQL_USERNAME=sa
+      - SQL_PASSWORD=YourStrongPassword123!
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - sqlserver
+      - redis
+    volumes:
+      - ./notebooks:/app/notebooks
+      - ./data:/app/data
+      - ./models:/app/models
+    networks:
+      - fresh_supply_network
+    command: jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fresh_supply_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - fresh_supply_network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fresh_supply_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - fresh_supply_network
+
+volumes:
+  sqlserver_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  fresh_supply_network:
+    driver: bridge

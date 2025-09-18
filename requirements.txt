@@ -1,0 +1,58 @@
+# Fresh Supply Chain Intelligence System
+# Production-ready requirements for BAMA Data Scientist position
+
+# Core Data Science
+pandas==2.1.4
+numpy==1.24.3
+scikit-learn==1.3.2
+scipy==1.11.4
+
+# Database Connectivity
+pyodbc==5.0.1
+sqlalchemy==2.0.23
+pymssql==2.2.11
+
+# Deep Learning & Computer Vision
+tensorflow==2.15.0
+torch==2.1.2
+torchvision==0.16.2
+torch-geometric==2.4.0
+opencv-python==4.8.1.78
+Pillow==10.1.0
+
+# Optimization
+gurobi==11.0.0
+networkx==3.2.1
+
+# Web Framework & API
+fastapi==0.105.0
+uvicorn==0.25.0
+pydantic==2.5.0
+
+# Visualization & Dashboard
+plotly==5.18.0
+dash==2.14.1
+
+# Caching & Performance
+redis==5.0.1
+
+# Testing & Quality
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Environment & Configuration
+python-dotenv==1.0.0
+
+# Cloud & Deployment
+boto3==1.33.13
+docker==7.0.0
+
+# Monitoring & Logging
+prometheus-client==0.19.0
+
+# HTTP & Networking
+requests==2.31.0
+
+# Development Tools
+jupyter==1.0.0
+ipykernel==6.25.2

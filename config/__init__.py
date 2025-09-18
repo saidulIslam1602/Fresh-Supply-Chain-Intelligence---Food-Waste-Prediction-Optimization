@@ -1,0 +1,1 @@
+# Configuration package for Fresh Supply Chain Intelligence System
