@@ -18,6 +18,12 @@ parts/
 sdist/
 var/
 wheels/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
 pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
