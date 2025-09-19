@@ -1,74 +1,307 @@
 """
-Temporal Fusion Transformer for demand forecasting
-Based on Google's TFT architecture for interpretable time series forecasting
+Enhanced Temporal Fusion Transformer for Advanced Demand Forecasting
+Multi-horizon forecasting with attention mechanisms, uncertainty quantification,
+and interpretable predictions for supply chain optimization
 """
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple
-from sklearn.preprocessing import StandardScaler
+from typing import Dict, List, Optional, Tuple, Union
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 from sqlalchemy import create_engine
 import logging
+from dataclasses import dataclass
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+import json
+import warnings
+warnings.filterwarnings('ignore')
 
 logger = logging.getLogger(__name__)
 
-class TemporalFusionTransformer(nn.Module):
-    """
-    Temporal Fusion Transformer for demand forecasting
-    Based on Google's TFT architecture for interpretable time series forecasting
-    """
+@dataclass
+class ForecastConfig:
+    """Configuration for enhanced forecasting model"""
+    input_size: int = 32
+    hidden_size: int = 256
+    num_heads: int = 8
+    num_layers: int = 4
+    dropout: float = 0.1
+    output_size: int = 1
+    forecast_horizon: int = 7
+    lookback_window: int = 30
+    quantiles: List[float] = None
+    use_attention: bool = True
+    use_uncertainty: bool = True
+    learning_rate: float = 1e-3
+    weight_decay: float = 1e-5
     
-    def __init__(
-        self,
-        input_size: int,
-        hidden_size: int = 256,
-        num_heads: int = 8,
-        num_layers: int = 4,
-        dropout: float = 0.1,
-        output_size: int = 1,
-        forecast_horizon: int = 7
-    ):
+    def __post_init__(self):
+        if self.quantiles is None:
+            self.quantiles = [0.1, 0.25, 0.5, 0.75, 0.9]
+
+class VariableSelectionNetwork(nn.Module):
+    """Variable selection network for feature importance"""
+    
+    def __init__(self, input_size: int, hidden_size: int, num_variables: int):
         super().__init__()
-        
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.num_variables = num_variables
+        
+        # Shared layers
+        self.shared_layers = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU()
+        )
+        
+        # Variable selection weights
+        self.variable_weights = nn.Linear(hidden_size, num_variables)
+        
+        # Variable processing
+        self.variable_processors = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(1, hidden_size // num_variables),
+                nn.ReLU()
+            ) for _ in range(num_variables)
+        ])
+        
+    def forward(self, x):
+        # x shape: (batch_size, seq_len, input_size) or (batch_size, input_size)
+        batch_size = x.size(0)
+        
+        if len(x.shape) == 3:
+            seq_len = x.size(1)
+            x_flat = x.view(batch_size * seq_len, -1)
+        else:
+            seq_len = 1
+            x_flat = x
+        
+        # Shared processing
+        shared_output = self.shared_layers(x_flat)
+        
+        # Variable selection weights
+        weights = torch.softmax(self.variable_weights(shared_output), dim=-1)
+        
+        # Process each variable
+        processed_vars = []
+        for i, processor in enumerate(self.variable_processors):
+            var_input = x_flat[:, i:i+1]  # Single variable
+            processed_var = processor(var_input)
+            processed_vars.append(processed_var)
+        
+        # Combine processed variables
+        processed_vars = torch.cat(processed_vars, dim=-1)
+        
+        # Apply selection weights
+        selected_vars = processed_vars * weights.repeat(1, processed_vars.size(-1) // weights.size(-1))
+        
+        if seq_len > 1:
+            selected_vars = selected_vars.view(batch_size, seq_len, -1)
+        
+        return selected_vars, weights
+
+class GatedResidualNetwork(nn.Module):
+    """Gated Residual Network for feature processing"""
+    
+    def __init__(self, input_size: int, hidden_size: int, output_size: int = None, dropout: float = 0.1):
+        super().__init__()
+        if output_size is None:
+            output_size = input_size
+        
+        self.input_size = input_size
         self.output_size = output_size
-        self.forecast_horizon = forecast_horizon
+        self.hidden_size = hidden_size
+        
+        # Main processing layers
+        self.linear1 = nn.Linear(input_size, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, output_size)
+        
+        # Gating mechanism
+        self.gate = nn.Sequential(
+            nn.Linear(hidden_size, output_size),
+            nn.Sigmoid()
+        )
+        
+        # Skip connection
+        if input_size != output_size:
+            self.skip_connection = nn.Linear(input_size, output_size)
+        else:
+            self.skip_connection = nn.Identity()
+        
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(output_size)
+        
+    def forward(self, x):
+        # Main path
+        hidden = F.relu(self.linear1(x))
+        hidden = self.dropout(hidden)
+        output = self.linear2(hidden)
+        
+        # Gating
+        gate_weights = self.gate(hidden)
+        gated_output = gate_weights * output
+        
+        # Skip connection
+        skip_output = self.skip_connection(x)
+        
+        # Combine and normalize
+        final_output = self.layer_norm(gated_output + skip_output)
+        
+        return final_output
+
+class TemporalFusionTransformer(nn.Module):
+    """
+    Enhanced Temporal Fusion Transformer for demand forecasting
+    Features: Variable selection, multi-head attention, quantile regression, interpretability
+    """
+    
+    def __init__(self, config: ForecastConfig):
+        super().__init__()
+        
+        self.config = config
+        self.input_size = config.input_size
+        self.hidden_size = config.hidden_size
+        self.output_size = config.output_size
+        self.forecast_horizon = config.forecast_horizon
         
         # Variable selection networks
-        self.static_vsn = self._build_variable_selection_network(input_size, hidden_size)
-        self.temporal_vsn = self._build_variable_selection_network(input_size, hidden_size)
+        self.static_vsn = VariableSelectionNetwork(
+            config.input_size, config.hidden_size, config.input_size
+        )
+        self.temporal_vsn = VariableSelectionNetwork(
+            config.input_size, config.hidden_size, config.input_size
+        )
         
         # LSTM for sequential processing
         self.lstm = nn.LSTM(
-            input_size=hidden_size,
-            hidden_size=hidden_size,
+            input_size=config.hidden_size,
+            hidden_size=config.hidden_size,
             num_layers=2,
             batch_first=True,
-            dropout=dropout
+            dropout=config.dropout,
+            bidirectional=False
         )
         
         # Multi-head attention
-        self.attention = nn.MultiheadAttention(
-            embed_dim=hidden_size,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True
-        )
+        if config.use_attention:
+            self.attention = nn.MultiheadAttention(
+                embed_dim=config.hidden_size,
+                num_heads=config.num_heads,
+                dropout=config.dropout,
+                batch_first=True
+            )
         
         # Gated Residual Networks
-        self.grn_historical = self._build_grn(hidden_size)
-        self.grn_future = self._build_grn(hidden_size)
-        
-        # Output layers
-        self.output_layers = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_size // 2, forecast_horizon * output_size)
+        self.grn_historical = GatedResidualNetwork(
+            config.hidden_size, config.hidden_size, config.hidden_size, config.dropout
         )
+        self.grn_future = GatedResidualNetwork(
+            config.hidden_size, config.hidden_size, config.hidden_size, config.dropout
+        )
+        
+        # Position encoding
+        self.position_encoding = nn.Parameter(
+            torch.randn(config.lookback_window + config.forecast_horizon, config.hidden_size)
+        )
+        
+        # Output layers for point prediction
+        self.output_layers = nn.Sequential(
+            GatedResidualNetwork(config.hidden_size, config.hidden_size, config.hidden_size // 2),
+            nn.Linear(config.hidden_size // 2, config.forecast_horizon * config.output_size)
+        )
+        
+        # Quantile regression heads
+        self.quantile_layers = nn.ModuleList([
+            nn.Sequential(
+                GatedResidualNetwork(config.hidden_size, config.hidden_size, config.hidden_size // 2),
+                nn.Linear(config.hidden_size // 2, config.forecast_horizon * config.output_size)
+            ) for _ in config.quantiles
+        ])
+        
+        # Uncertainty estimation
+        if config.use_uncertainty:
+            self.uncertainty_head = nn.Sequential(
+                GatedResidualNetwork(config.hidden_size, config.hidden_size, config.hidden_size // 2),
+                nn.Linear(config.hidden_size // 2, config.forecast_horizon * config.output_size),
+                nn.Softplus()  # Ensure positive uncertainty
+            )
+    
+    def forward(self, x_static, x_temporal_historical, x_temporal_future=None):
+        """
+        Enhanced forward pass with variable selection and attention
+        
+        Args:
+            x_static: Static features (batch_size, static_features)
+            x_temporal_historical: Historical temporal features (batch_size, seq_len, temporal_features)
+            x_temporal_future: Known future features (batch_size, forecast_horizon, future_features)
+        """
+        batch_size = x_temporal_historical.size(0)
+        seq_len = x_temporal_historical.size(1)
+        
+        # Variable selection for static features
+        static_encoded, static_weights = self.static_vsn(x_static)
+        static_encoded = static_encoded.unsqueeze(1).repeat(1, seq_len, 1)
+        
+        # Variable selection for temporal features
+        temporal_encoded, temporal_weights = self.temporal_vsn(x_temporal_historical)
+        
+        # Combine static and temporal features
+        combined_features = temporal_encoded + static_encoded
+        
+        # Add positional encoding
+        pos_encoding = self.position_encoding[:seq_len].unsqueeze(0).repeat(batch_size, 1, 1)
+        combined_features = combined_features + pos_encoding
+        
+        # LSTM processing
+        lstm_output, (hidden_state, cell_state) = self.lstm(combined_features)
+        
+        # Self-attention mechanism
+        if self.config.use_attention:
+            attn_output, attention_weights = self.attention(lstm_output, lstm_output, lstm_output)
+            lstm_output = lstm_output + attn_output  # Residual connection
+        else:
+            attention_weights = None
+        
+        # Gated residual processing
+        processed_output = self.grn_historical(lstm_output)
+        
+        # Use last hidden state for prediction
+        final_hidden = processed_output[:, -1, :]  # (batch_size, hidden_size)
+        
+        # Point prediction
+        point_forecast = self.output_layers(final_hidden)
+        point_forecast = point_forecast.view(batch_size, self.forecast_horizon, self.output_size)
+        
+        # Quantile predictions
+        quantile_forecasts = []
+        for quantile_layer in self.quantile_layers:
+            quantile_pred = quantile_layer(final_hidden)
+            quantile_pred = quantile_pred.view(batch_size, self.forecast_horizon, self.output_size)
+            quantile_forecasts.append(quantile_pred)
+        
+        results = {
+            'point_forecast': point_forecast,
+            'quantile_forecasts': quantile_forecasts,
+            'static_weights': static_weights,
+            'temporal_weights': temporal_weights,
+            'attention_weights': attention_weights
+        }
+        
+        # Uncertainty estimation
+        if self.config.use_uncertainty:
+            uncertainty = self.uncertainty_head(final_hidden)
+            uncertainty = uncertainty.view(batch_size, self.forecast_horizon, self.output_size)
+            results['uncertainty'] = uncertainty
+        
+        return results
         
         # Quantile outputs for uncertainty estimation
         self.quantile_layers = nn.ModuleList([
