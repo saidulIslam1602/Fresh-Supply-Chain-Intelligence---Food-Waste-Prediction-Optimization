@@ -77,6 +77,11 @@ prometheus-client==0.19.0
 # HTTP & Networking
 requests==2.31.0
 
+# Security & Threat Detection
+pyotp==2.9.0
+qrcode==7.4.2
+aiofiles==23.2.1
+
 # Development Tools
 jupyter==1.0.0
 ipykernel==6.25.2
