@@ -1,0 +1,211 @@
+# API Alerting Rules for Fresh Supply Chain Intelligence System
+groups:
+  - name: api_alerts
+    rules:
+      # High-level API availability
+      - alert: APIDown
+        expr: up{job="fresh-supply-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: api
+          team: platform
+        annotations:
+          summary: "Fresh Supply Chain API is down"
+          description: "The Fresh Supply Chain API has been down for more than 30 seconds. This affects all system functionality."
+          runbook_url: "https://wiki.company.com/runbooks/api-down"
+          dashboard_url: "http://grafana:3000/d/api-overview"
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(api_requests_total{job="fresh-supply-api",status=~"5.."}[5m]) /
+            rate(api_requests_total{job="fresh-supply-api"}[5m])
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "High API error rate detected"
+          description: "API error rate is {{ $value | humanizePercentage }} which is above the 5% threshold."
+          runbook_url: "https://wiki.company.com/runbooks/high-error-rate"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            rate(api_request_duration_seconds_bucket{job="fresh-supply-api"}[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "High API response time"
+          description: "95th percentile response time is {{ $value }}s, above 2s threshold."
+          runbook_url: "https://wiki.company.com/runbooks/high-latency"
+
+      # Rate limiting triggered
+      - alert: RateLimitingActive
+        expr: increase(api_rate_limit_exceeded_total{job="fresh-supply-api"}[5m]) > 100
+        for: 1m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "High rate limiting activity"
+          description: "Rate limiting has been triggered {{ $value }} times in the last 5 minutes."
+
+      # Authentication failures
+      - alert: HighAuthenticationFailures
+        expr: |
+          rate(api_authentication_failures_total{job="fresh-supply-api"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+          team: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failures are occurring at {{ $value }} per second."
+          runbook_url: "https://wiki.company.com/runbooks/auth-failures"
+
+      # Memory usage high
+      - alert: APIHighMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes{job="fresh-supply-api"} / 
+            (1024 * 1024 * 1024)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "API high memory usage"
+          description: "API memory usage is {{ $value | humanize }}GB, above 2GB threshold."
+
+      # CPU usage high
+      - alert: APIHighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job="fresh-supply-api"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "API high CPU usage"
+          description: "API CPU usage is {{ $value | humanizePercentage }}, above 80% threshold."
+
+      # Database connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          api_database_connections_active{job="fresh-supply-api"} / 
+          api_database_connections_max{job="fresh-supply-api"} > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+          team: platform
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Database connection pool is {{ $value | humanizePercentage }} full."
+          runbook_url: "https://wiki.company.com/runbooks/db-connections"
+
+      # Cache miss rate high
+      - alert: HighCacheMissRate
+        expr: |
+          (
+            rate(api_cache_misses_total{job="fresh-supply-api"}[5m]) /
+            rate(api_cache_requests_total{job="fresh-supply-api"}[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+          team: platform
+        annotations:
+          summary: "High cache miss rate"
+          description: "Cache miss rate is {{ $value | humanizePercentage }}, above 50% threshold."
+
+      # Prediction endpoint specific alerts
+      - alert: PredictionEndpointDown
+        expr: |
+          rate(api_requests_total{job="fresh-supply-api",endpoint="/api/v2/predict/quality"}[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Quality prediction endpoint not receiving requests"
+          description: "No requests to quality prediction endpoint in the last 10 minutes."
+
+      # Model prediction accuracy drop
+      - alert: ModelAccuracyDrop
+        expr: |
+          model_prediction_accuracy{job="fresh-supply-api",model_type="vision"} < 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Vision model accuracy dropped"
+          description: "Vision model accuracy is {{ $value | humanizePercentage }}, below 85% threshold."
+          runbook_url: "https://wiki.company.com/runbooks/model-accuracy"
+
+  - name: api_sla_alerts
+    rules:
+      # SLA: 99.9% availability
+      - alert: SLAAvailabilityBreach
+        expr: |
+          (
+            avg_over_time(up{job="fresh-supply-api"}[1h]) < 0.999
+          )
+        for: 0m
+        labels:
+          severity: critical
+          component: sla
+          team: platform
+        annotations:
+          summary: "SLA availability breach"
+          description: "API availability in the last hour is {{ $value | humanizePercentage }}, below 99.9% SLA."
+
+      # SLA: 95th percentile response time < 500ms
+      - alert: SLAResponseTimeBreach
+        expr: |
+          histogram_quantile(0.95, 
+            rate(api_request_duration_seconds_bucket{job="fresh-supply-api"}[1h])
+          ) > 0.5
+        for: 0m
+        labels:
+          severity: warning
+          component: sla
+          team: platform
+        annotations:
+          summary: "SLA response time breach"
+          description: "95th percentile response time in the last hour is {{ $value }}s, above 500ms SLA."
+
+      # SLA: Error rate < 1%
+      - alert: SLAErrorRateBreach
+        expr: |
+          (
+            rate(api_requests_total{job="fresh-supply-api",status=~"5.."}[1h]) /
+            rate(api_requests_total{job="fresh-supply-api"}[1h])
+          ) > 0.01
+        for: 0m
+        labels:
+          severity: warning
+          component: sla
+          team: platform
+        annotations:
+          summary: "SLA error rate breach"
+          description: "Error rate in the last hour is {{ $value | humanizePercentage }}, above 1% SLA."

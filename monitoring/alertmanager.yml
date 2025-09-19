@@ -1,0 +1,298 @@
+# Enhanced Alertmanager Configuration for Fresh Supply Chain Intelligence System
+global:
+  # SMTP configuration for email alerts
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@freshsupply.com'
+  smtp_auth_username: 'alerts@freshsupply.com'
+  smtp_auth_password: 'your-app-password'
+  smtp_require_tls: true
+
+  # Slack configuration
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+# Templates for alert notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+      
+    # API alerts
+    - match:
+        component: api
+      receiver: 'api-team'
+      group_by: ['alertname', 'endpoint']
+      
+    # ML/AI alerts
+    - match:
+        component: ml
+      receiver: 'ml-ops-team'
+      group_by: ['alertname', 'model']
+      
+    # Business alerts
+    - match:
+        component: business
+      receiver: 'business-team'
+      group_by: ['alertname', 'kpi']
+      
+    # Infrastructure alerts
+    - match:
+        component: infrastructure
+      receiver: 'platform-team'
+      
+    # Security alerts
+    - match:
+        component: security
+      receiver: 'security-team'
+      group_wait: 0s
+      repeat_interval: 15m
+
+# Inhibition rules to reduce alert noise
+inhibit_rules:
+  # If API is down, don't alert on high response times
+  - source_match:
+      alertname: 'APIDown'
+    target_match:
+      alertname: 'HighResponseTime'
+    equal: ['job']
+    
+  # If database is down, don't alert on connection issues
+  - source_match:
+      alertname: 'DatabaseDown'
+    target_match_re:
+      alertname: '.*Connection.*'
+    equal: ['instance']
+    
+  # If model serving is down, don't alert on accuracy
+  - source_match:
+      alertname: 'ModelServingDown'
+    target_match:
+      alertname: 'ModelAccuracyDrop'
+    equal: ['model_type']
+
+# Receiver configurations
+receivers:
+  # Default receiver
+  - name: 'default'
+    email_configs:
+      - to: 'ops@freshsupply.com'
+        subject: '[Fresh Supply Chain] {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }}{{ .Name }}: {{ .Value }}{{ end }}
+          {{ end }}
+
+  # Critical alerts - multiple channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'critical@freshsupply.com'
+        subject: '🚨 CRITICAL: [Fresh Supply Chain] {{ .GroupLabels.alertname }}'
+        body: |
+          🚨 CRITICAL ALERT 🚨
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Component: {{ .Labels.component }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          Dashboard: {{ .Annotations.dashboard_url }}
+          
+          Labels: {{ range .Labels.SortedPairs }}
+          - {{ .Name }}: {{ .Value }}{{ end }}
+          {{ end }}
+        headers:
+          Priority: 'high'
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK'
+        channel: '#critical-alerts'
+        title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Component:* {{ .Labels.component }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        color: 'danger'
+        
+    pagerduty_configs:
+      - routing_key: 'your-pagerduty-integration-key'
+        description: '{{ .GroupLabels.alertname }}: {{ .Alerts.Firing | len }} alerts'
+
+  # API team alerts
+  - name: 'api-team'
+    email_configs:
+      - to: 'api-team@freshsupply.com'
+        subject: '[API Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          API Alert Notification
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Endpoint: {{ .Labels.endpoint }}
+          Method: {{ .Labels.method }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          Dashboard: {{ .Annotations.dashboard_url }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/API/WEBHOOK'
+        channel: '#api-alerts'
+        title: 'API Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Endpoint:* {{ .Labels.endpoint }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+
+  # ML/AI team alerts
+  - name: 'ml-ops-team'
+    email_configs:
+      - to: 'ml-ops@freshsupply.com'
+        subject: '[ML Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          ML/AI System Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Model: {{ .Labels.model }}
+          Model Type: {{ .Labels.model_type }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          Dashboard: {{ .Annotations.dashboard_url }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/ML/WEBHOOK'
+        channel: '#ml-alerts'
+        title: 'ML Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Model:* {{ .Labels.model_type }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+
+  # Business team alerts
+  - name: 'business-team'
+    email_configs:
+      - to: 'business-ops@freshsupply.com'
+        subject: '[Business KPI Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Business KPI Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          KPI: {{ .Labels.kpi }}
+          Team: {{ .Labels.team }}
+          
+          Dashboard: {{ .Annotations.dashboard_url }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/BUSINESS/WEBHOOK'
+        channel: '#business-alerts'
+        title: 'Business KPI Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *KPI:* {{ .Labels.kpi }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+
+  # Platform team alerts
+  - name: 'platform-team'
+    email_configs:
+      - to: 'platform@freshsupply.com'
+        subject: '[Infrastructure Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Infrastructure Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Instance: {{ .Labels.instance }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/PLATFORM/WEBHOOK'
+        channel: '#platform-alerts'
+        title: 'Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Instance:* {{ .Labels.instance }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+
+  # Security team alerts
+  - name: 'security-team'
+    email_configs:
+      - to: 'security@freshsupply.com'
+        subject: '🔒 [Security Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          🔒 SECURITY ALERT 🔒
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Source IP: {{ .Labels.source_ip }}
+          
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+        headers:
+          Priority: 'high'
+          
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SECURITY/WEBHOOK'
+        channel: '#security-alerts'
+        title: '🔒 Security Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+        color: 'danger'
+
+# Time intervals for grouping and repetition
+time_intervals:
+  - name: 'business-hours'
+    time_intervals:
+      - times:
+        - start_time: '09:00'
+          end_time: '17:00'
+        weekdays: ['monday:friday']
+        
+  - name: 'weekends'
+    time_intervals:
+      - weekdays: ['saturday', 'sunday']

@@ -1,0 +1,350 @@
+# Business Metrics Alerting Rules for Fresh Supply Chain Intelligence System
+groups:
+  - name: business_kpi_alerts
+    rules:
+      # Supply Chain Performance Alerts
+      - alert: OTIFRateDropped
+        expr: |
+          business_otif_rate < 0.95
+        for: 15m
+        labels:
+          severity: warning
+          component: business
+          kpi: otif
+          team: operations
+        annotations:
+          summary: "OTIF rate below target"
+          description: "On-Time In-Full rate is {{ $value | humanizePercentage }}, below 95% target."
+          runbook_url: "https://wiki.company.com/runbooks/otif-rate"
+          dashboard_url: "http://grafana:3000/d/business-kpis"
+
+      - alert: TemperatureComplianceIssue
+        expr: |
+          business_temperature_compliance_rate < 0.90
+        for: 10m
+        labels:
+          severity: critical
+          component: business
+          kpi: temperature
+          team: operations
+        annotations:
+          summary: "Temperature compliance rate critical"
+          description: "Temperature compliance rate is {{ $value | humanizePercentage }}, below 90% threshold."
+          runbook_url: "https://wiki.company.com/runbooks/temperature-compliance"
+
+      - alert: WasteReductionTargetMissed
+        expr: |
+          business_waste_reduction_percentage < 0.20
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+          kpi: waste
+          team: sustainability
+        annotations:
+          summary: "Waste reduction target not met"
+          description: "Waste reduction is {{ $value | humanizePercentage }}, below 20% target."
+
+      # Financial Performance Alerts
+      - alert: CostSavingsTargetMissed
+        expr: |
+          business_monthly_cost_savings < 100000
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+          kpi: cost_savings
+          team: finance
+        annotations:
+          summary: "Monthly cost savings target missed"
+          description: "Monthly cost savings is {{ $value | humanize }}NOK, below 100,000 NOK target."
+
+      - alert: ROIBelowTarget
+        expr: |
+          business_roi_percentage < 200
+        for: 2h
+        labels:
+          severity: warning
+          component: business
+          kpi: roi
+          team: finance
+        annotations:
+          summary: "ROI below target threshold"
+          description: "Return on Investment is {{ $value }}%, below 200% target."
+
+      # Quality Metrics Alerts
+      - alert: QualityScoreDropped
+        expr: |
+          avg_over_time(business_average_quality_score[1h]) < 0.80
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+          kpi: quality
+          team: quality-control
+        annotations:
+          summary: "Average quality score dropped"
+          description: "Average quality score is {{ $value }}, below 0.80 threshold."
+
+      - alert: QualityRejectionsHigh
+        expr: |
+          rate(business_quality_rejections_total[5m]) > 0.05
+        for: 15m
+        labels:
+          severity: warning
+          component: business
+          kpi: quality
+          team: quality-control
+        annotations:
+          summary: "High quality rejection rate"
+          description: "Quality rejection rate is {{ $value }} per second, above 0.05/s threshold."
+
+      # Inventory Management Alerts
+      - alert: InventoryTurnoverLow
+        expr: |
+          business_inventory_turnover_ratio < 12
+        for: 4h
+        labels:
+          severity: warning
+          component: business
+          kpi: inventory
+          team: inventory-management
+        annotations:
+          summary: "Inventory turnover ratio low"
+          description: "Inventory turnover ratio is {{ $value }}, below 12 times per year target."
+
+      - alert: StockoutRateHigh
+        expr: |
+          business_stockout_rate > 0.02
+        for: 1h
+        labels:
+          severity: critical
+          component: business
+          kpi: inventory
+          team: inventory-management
+        annotations:
+          summary: "High stockout rate detected"
+          description: "Stockout rate is {{ $value | humanizePercentage }}, above 2% threshold."
+
+      - alert: ExcessInventoryHigh
+        expr: |
+          business_excess_inventory_percentage > 0.15
+        for: 2h
+        labels:
+          severity: warning
+          component: business
+          kpi: inventory
+          team: inventory-management
+        annotations:
+          summary: "Excess inventory levels high"
+          description: "Excess inventory is {{ $value | humanizePercentage }}, above 15% threshold."
+
+  - name: customer_satisfaction_alerts
+    rules:
+      # Customer Satisfaction Metrics
+      - alert: CustomerSatisfactionDropped
+        expr: |
+          business_customer_satisfaction_score < 4.0
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+          kpi: customer_satisfaction
+          team: customer-success
+        annotations:
+          summary: "Customer satisfaction score dropped"
+          description: "Customer satisfaction score is {{ $value }}/5, below 4.0 threshold."
+
+      - alert: CustomerComplaintsHigh
+        expr: |
+          rate(business_customer_complaints_total[1h]) > 0.01
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+          kpi: customer_satisfaction
+          team: customer-success
+        annotations:
+          summary: "High customer complaint rate"
+          description: "Customer complaint rate is {{ $value }} per hour, above 0.01/h threshold."
+
+      - alert: DeliveryDelaysHigh
+        expr: |
+          business_delivery_delay_rate > 0.05
+        for: 2h
+        labels:
+          severity: warning
+          component: business
+          kpi: delivery
+          team: logistics
+        annotations:
+          summary: "High delivery delay rate"
+          description: "Delivery delay rate is {{ $value | humanizePercentage }}, above 5% threshold."
+
+  - name: sustainability_alerts
+    rules:
+      # Environmental Impact Alerts
+      - alert: CarbonFootprintIncreased
+        expr: |
+          increase(business_carbon_footprint_kg[24h]) > 1000
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+          kpi: sustainability
+          team: sustainability
+        annotations:
+          summary: "Carbon footprint increased significantly"
+          description: "Carbon footprint increased by {{ $value }}kg in the last 24 hours."
+
+      - alert: EnergyEfficiencyDropped
+        expr: |
+          business_energy_efficiency_score < 0.75
+        for: 4h
+        labels:
+          severity: warning
+          component: business
+          kpi: sustainability
+          team: sustainability
+        annotations:
+          summary: "Energy efficiency score dropped"
+          description: "Energy efficiency score is {{ $value }}, below 0.75 threshold."
+
+      - alert: WaterUsageHigh
+        expr: |
+          business_water_usage_liters_per_unit > 50
+        for: 6h
+        labels:
+          severity: warning
+          component: business
+          kpi: sustainability
+          team: sustainability
+        annotations:
+          summary: "Water usage per unit high"
+          description: "Water usage is {{ $value }} liters per unit, above 50L threshold."
+
+  - name: operational_efficiency_alerts
+    rules:
+      # Operational Efficiency Metrics
+      - alert: ProductionEfficiencyLow
+        expr: |
+          business_production_efficiency_percentage < 0.85
+        for: 2h
+        labels:
+          severity: warning
+          component: business
+          kpi: efficiency
+          team: operations
+        annotations:
+          summary: "Production efficiency below target"
+          description: "Production efficiency is {{ $value | humanizePercentage }}, below 85% target."
+
+      - alert: EquipmentUtilizationLow
+        expr: |
+          business_equipment_utilization_rate < 0.70
+        for: 4h
+        labels:
+          severity: warning
+          component: business
+          kpi: efficiency
+          team: operations
+        annotations:
+          summary: "Equipment utilization low"
+          description: "Equipment utilization is {{ $value | humanizePercentage }}, below 70% threshold."
+
+      - alert: MaintenanceOverdue
+        expr: |
+          business_overdue_maintenance_count > 5
+        for: 1h
+        labels:
+          severity: critical
+          component: business
+          kpi: maintenance
+          team: maintenance
+        annotations:
+          summary: "Multiple overdue maintenance items"
+          description: "{{ $value }} maintenance items are overdue."
+
+  - name: revenue_alerts
+    rules:
+      # Revenue and Profitability Alerts
+      - alert: RevenueTargetMissed
+        expr: |
+          business_monthly_revenue < 5000000
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+          kpi: revenue
+          team: sales
+        annotations:
+          summary: "Monthly revenue target missed"
+          description: "Monthly revenue is {{ $value | humanize }}NOK, below 5M NOK target."
+
+      - alert: ProfitMarginLow
+        expr: |
+          business_profit_margin_percentage < 0.15
+        for: 2h
+        labels:
+          severity: warning
+          component: business
+          kpi: profitability
+          team: finance
+        annotations:
+          summary: "Profit margin below target"
+          description: "Profit margin is {{ $value | humanizePercentage }}, below 15% target."
+
+      - alert: CostPerUnitHigh
+        expr: |
+          business_cost_per_unit > 25
+        for: 4h
+        labels:
+          severity: warning
+          component: business
+          kpi: cost
+          team: operations
+        annotations:
+          summary: "Cost per unit above target"
+          description: "Cost per unit is {{ $value }}NOK, above 25 NOK target."
+
+  - name: supply_chain_alerts
+    rules:
+      # Supply Chain Specific Alerts
+      - alert: SupplierPerformanceLow
+        expr: |
+          business_supplier_performance_score < 0.80
+        for: 6h
+        labels:
+          severity: warning
+          component: business
+          kpi: supplier
+          team: procurement
+        annotations:
+          summary: "Supplier performance score low"
+          description: "Supplier {{ $labels.supplier_name }} performance is {{ $value }}, below 0.80 threshold."
+
+      - alert: TransportationCostHigh
+        expr: |
+          business_transportation_cost_per_km > 15
+        for: 4h
+        labels:
+          severity: warning
+          component: business
+          kpi: transportation
+          team: logistics
+        annotations:
+          summary: "Transportation cost per km high"
+          description: "Transportation cost is {{ $value }}NOK/km, above 15 NOK/km threshold."
+
+      - alert: ForecastAccuracyLow
+        expr: |
+          business_demand_forecast_accuracy < 0.85
+        for: 12h
+        labels:
+          severity: warning
+          component: business
+          kpi: forecasting
+          team: planning
+        annotations:
+          summary: "Demand forecast accuracy low"
+          description: "Demand forecast accuracy is {{ $value | humanizePercentage }}, below 85% threshold."

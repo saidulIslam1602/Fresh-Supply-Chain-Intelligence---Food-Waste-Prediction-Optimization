@@ -1,0 +1,266 @@
+# ML Model Alerting Rules for Fresh Supply Chain Intelligence System
+groups:
+  - name: ml_model_alerts
+    rules:
+      # Vision Model Alerts
+      - alert: VisionModelAccuracyDrop
+        expr: |
+          model_prediction_accuracy{model_type="vision"} < 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: ml
+          model: vision
+          team: ml-ops
+        annotations:
+          summary: "Vision model accuracy dropped significantly"
+          description: "Vision model accuracy is {{ $value | humanizePercentage }}, below 85% threshold for 10 minutes."
+          runbook_url: "https://wiki.company.com/runbooks/vision-model-accuracy"
+          dashboard_url: "http://grafana:3000/d/ml-models"
+
+      - alert: VisionModelHighUncertainty
+        expr: |
+          avg_over_time(model_prediction_uncertainty{model_type="vision"}[5m]) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          component: ml
+          model: vision
+          team: ml-ops
+        annotations:
+          summary: "Vision model showing high uncertainty"
+          description: "Average prediction uncertainty is {{ $value }}, above 0.3 threshold."
+
+      - alert: VisionModelPredictionLatency
+        expr: |
+          histogram_quantile(0.95, 
+            rate(model_prediction_duration_seconds_bucket{model_type="vision"}[5m])
+          ) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+          component: ml
+          model: vision
+          team: ml-ops
+        annotations:
+          summary: "Vision model prediction latency high"
+          description: "95th percentile prediction time is {{ $value }}s, above 1s threshold."
+
+      # Forecasting Model Alerts
+      - alert: ForecastingModelAccuracyDrop
+        expr: |
+          model_forecast_mape{model_type="forecasting"} > 20
+        for: 15m
+        labels:
+          severity: warning
+          component: ml
+          model: forecasting
+          team: ml-ops
+        annotations:
+          summary: "Forecasting model MAPE increased"
+          description: "Forecasting model MAPE is {{ $value }}%, above 20% threshold."
+          runbook_url: "https://wiki.company.com/runbooks/forecasting-accuracy"
+
+      - alert: ForecastingModelBias
+        expr: |
+          abs(model_forecast_bias{model_type="forecasting"}) > 0.15
+        for: 10m
+        labels:
+          severity: warning
+          component: ml
+          model: forecasting
+          team: ml-ops
+        annotations:
+          summary: "Forecasting model showing significant bias"
+          description: "Forecasting model bias is {{ $value }}, above ±0.15 threshold."
+
+      - alert: ForecastingModelDataDrift
+        expr: |
+          model_data_drift_score{model_type="forecasting"} > 0.7
+        for: 5m
+        labels:
+          severity: critical
+          component: ml
+          model: forecasting
+          team: ml-ops
+        annotations:
+          summary: "Data drift detected in forecasting model"
+          description: "Data drift score is {{ $value }}, above 0.7 threshold. Model may need retraining."
+          runbook_url: "https://wiki.company.com/runbooks/data-drift"
+
+      # GNN Optimization Model Alerts
+      - alert: GNNOptimizationFailure
+        expr: |
+          rate(model_optimization_failures_total{model_type="gnn"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: ml
+          model: gnn
+          team: ml-ops
+        annotations:
+          summary: "GNN optimization failures increasing"
+          description: "GNN optimization failure rate is {{ $value }} per second."
+
+      - alert: GNNOptimizationLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(model_optimization_duration_seconds_bucket{model_type="gnn"}[5m])
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: ml
+          model: gnn
+          team: ml-ops
+        annotations:
+          summary: "GNN optimization taking too long"
+          description: "95th percentile optimization time is {{ $value }}s, above 30s threshold."
+
+      # Model Training Alerts
+      - alert: ModelTrainingFailure
+        expr: |
+          increase(model_training_failures_total[1h]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Model training failed"
+          description: "Model training has failed {{ $value }} times in the last hour."
+          runbook_url: "https://wiki.company.com/runbooks/training-failure"
+
+      - alert: ModelNotUpdated
+        expr: |
+          (time() - model_last_updated_timestamp) > 604800  # 7 days
+        for: 0m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Model not updated recently"
+          description: "Model {{ $labels.model_type }} hasn't been updated for {{ $value | humanizeDuration }}."
+
+      # Feature Store Alerts
+      - alert: FeatureStoreLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(feature_store_request_duration_seconds_bucket[5m])
+          ) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Feature store high latency"
+          description: "Feature store 95th percentile latency is {{ $value }}s, above 500ms threshold."
+
+      - alert: FeatureQualityDrop
+        expr: |
+          feature_quality_score < 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Feature quality degraded"
+          description: "Feature quality score for {{ $labels.feature_name }} is {{ $value }}, below 0.8 threshold."
+
+      # Model Serving Alerts
+      - alert: ModelServingDown
+        expr: |
+          up{job="ml-models"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Model serving endpoint down"
+          description: "ML model serving endpoint has been down for more than 1 minute."
+
+      - alert: ModelMemoryUsage
+        expr: |
+          (
+            model_memory_usage_bytes / (1024 * 1024 * 1024)
+          ) > 4
+        for: 5m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Model using excessive memory"
+          description: "Model {{ $labels.model_type }} is using {{ $value }}GB memory, above 4GB threshold."
+
+      # Business Impact Alerts
+      - alert: PredictionVolumeDropped
+        expr: |
+          rate(model_predictions_total[5m]) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Model prediction volume dropped"
+          description: "Model prediction rate is {{ $value }} per second, below expected 0.1/s."
+
+      - alert: ModelBusinessImpactDrop
+        expr: |
+          model_business_impact_score < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          component: ml
+          team: ml-ops
+        annotations:
+          summary: "Model business impact decreased"
+          description: "Model business impact score is {{ $value }}, below 0.7 threshold."
+
+  - name: ml_model_sla_alerts
+    rules:
+      # SLA: Model availability 99.5%
+      - alert: ModelSLAAvailabilityBreach
+        expr: |
+          avg_over_time(up{job="ml-models"}[1h]) < 0.995
+        for: 0m
+        labels:
+          severity: critical
+          component: ml-sla
+          team: ml-ops
+        annotations:
+          summary: "Model SLA availability breach"
+          description: "Model availability in the last hour is {{ $value | humanizePercentage }}, below 99.5% SLA."
+
+      # SLA: Prediction latency < 200ms (95th percentile)
+      - alert: ModelSLALatencyBreach
+        expr: |
+          histogram_quantile(0.95,
+            rate(model_prediction_duration_seconds_bucket[1h])
+          ) > 0.2
+        for: 0m
+        labels:
+          severity: warning
+          component: ml-sla
+          team: ml-ops
+        annotations:
+          summary: "Model SLA latency breach"
+          description: "Model 95th percentile latency in the last hour is {{ $value }}s, above 200ms SLA."
+
+      # SLA: Model accuracy > 90%
+      - alert: ModelSLAAccuracyBreach
+        expr: |
+          avg_over_time(model_prediction_accuracy[1h]) < 0.9
+        for: 0m
+        labels:
+          severity: critical
+          component: ml-sla
+          team: ml-ops
+        annotations:
+          summary: "Model SLA accuracy breach"
+          description: "Model accuracy in the last hour is {{ $value | humanizePercentage }}, below 90% SLA."
