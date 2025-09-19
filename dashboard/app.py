@@ -681,18 +681,29 @@ def update_enhanced_kpis(n):
     """Update KPIs with trend indicators"""
     
     def get_kpi_data():
+        # Try to get real KPI data from API
+        try:
+            api_data = fetch_api_data("/api/v1/metrics/kpi")
+            if api_data and "kpis" in api_data:
+                return api_data["kpis"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch real KPI data: {e}")
+        
+        # Fallback: Try database calculation
         if engine:
             try:
-                # Real KPI calculations would go here
-                pass
+                # Real KPI calculations from database
+                with engine.connect() as conn:
+                    # This would be real SQL queries
+                    pass
             except Exception as e:
                 logger.error(f"KPI calculation error: {e}")
         
-        # Use mock data for demonstration
+        # Final fallback to mock data
         mock_data = generate_mock_data()
         return mock_data["kpis"]
     
-    kpis = get_cached_data("dashboard:kpis", get_kpi_data, 60)
+    kpis = get_kpi_data()  # Get fresh data each time to see real updates
     
     # Generate trend indicators
     def create_trend_indicator(value, target, is_higher_better=True):
@@ -730,6 +741,15 @@ def update_enhanced_kpis(n):
         create_trend_indicator(kpis['ai_accuracy'], 90)
     )
 
+# Auto-refresh control callback
+@app.callback(
+    Output("main-interval", "disabled"),
+    Input("auto-refresh-switch", "on")
+)
+def toggle_auto_refresh(auto_refresh_on):
+    """Enable/disable auto-refresh based on switch state"""
+    return not auto_refresh_on
+
 # Enhanced temperature monitoring chart
 @app.callback(
     Output("temperature-chart", "figure"),
@@ -741,10 +761,30 @@ def update_temperature_chart(n, time_range, warehouse):
     """Create enhanced temperature monitoring chart"""
     
     def get_temperature_data():
+        # Try to get real IoT data from API
+        try:
+            api_data = fetch_api_data("/api/v1/iot/readings")
+            if api_data and "readings" in api_data:
+                # Convert API data to dashboard format
+                temp_data = []
+                for reading in api_data["readings"]:
+                    temp_data.append({
+                        "timestamp": reading["timestamp"],
+                        "warehouse_id": int(reading["sensor_id"].split("_")[1]) if "_" in reading["sensor_id"] else 1,
+                        "temperature": reading["temperature"],
+                        "humidity": reading["humidity"],
+                        "quality_score": 0.85 + (reading["temperature"] - 4.5) * 0.1  # Quality based on temp
+                    })
+                return temp_data
+        except Exception as e:
+            logger.warning(f"Failed to fetch real IoT data: {e}")
+        
+        # Fallback to mock data if API fails
         mock_data = generate_mock_data()
         return mock_data["temperature_data"]
     
-    temp_data = get_cached_data(f"dashboard:temperature:{time_range}:{warehouse}", get_temperature_data, 30)
+    # Get real data from API or fallback to mock
+    temp_data = get_temperature_data()
     
     if not temp_data:
         return go.Figure()
@@ -752,9 +792,35 @@ def update_temperature_chart(n, time_range, warehouse):
     df = pd.DataFrame(temp_data)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     
+    # Apply time range filter
+    current_time = datetime.now()
+    if time_range == "1h":
+        cutoff_time = current_time - timedelta(hours=1)
+    elif time_range == "6h":
+        cutoff_time = current_time - timedelta(hours=6)
+    elif time_range == "24h":
+        cutoff_time = current_time - timedelta(hours=24)
+    elif time_range == "7d":
+        cutoff_time = current_time - timedelta(days=7)
+    elif time_range == "30d":
+        cutoff_time = current_time - timedelta(days=30)
+    else:
+        cutoff_time = current_time - timedelta(hours=24)
+    
+    df = df[df['timestamp'] >= cutoff_time]
+    
     # Filter by warehouse if specified
     if warehouse != "all":
         df = df[df['warehouse_id'] == int(warehouse)]
+        
+    # Add warehouse info to chart title
+    warehouse_name = {
+        "1": "Oslo Central",
+        "2": "Bergen Hub", 
+        "3": "Trondheim North",
+        "4": "Stavanger South",
+        "5": "Tromsø Arctic"
+    }.get(warehouse, "All Warehouses")
     
     # Create subplot with secondary y-axis
     fig = make_subplots(
@@ -818,8 +884,9 @@ def update_temperature_chart(n, time_range, warehouse):
         row=2, col=1
     )
     
-    # Update layout
+    # Update layout with warehouse-specific title
     fig.update_layout(
+        title=f"Temperature Monitoring: {warehouse_name} ({time_range.upper()} | {len(df)} data points)",
         height=400,
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -846,63 +913,95 @@ def update_temperature_chart(n, time_range, warehouse):
 def update_demand_forecast_chart(n, category):
     """Create enhanced demand forecasting chart with uncertainty bands"""
     
-    # Generate mock forecast data
-    dates = pd.date_range(start=datetime.now(), periods=14, freq='D')
-    base_demand = 100
+    try:
+        # Generate mock forecast data
+        current_time = datetime.now()
+        dates = pd.date_range(start=current_time, periods=14, freq='D')
+        base_demand = 100
+        
+        # Historical data
+        hist_dates = pd.date_range(start=current_time - timedelta(days=7), periods=7, freq='D')
+        historical_demand = [base_demand + np.random.normal(0, 10) + 5 * np.sin(i * 0.5) for i in range(7)]
+        
+        # Forecast data with uncertainty
+        forecast_demand = [base_demand + np.random.normal(0, 5) + 10 * np.sin(i * 0.3) for i in range(14)]
+        upper_bound = [d * 1.2 for d in forecast_demand]
+        lower_bound = [d * 0.8 for d in forecast_demand]
+        
+        fig = go.Figure()
+        
+        # Historical data
+        fig.add_trace(go.Scatter(
+            x=hist_dates,
+            y=historical_demand,
+            mode='lines+markers',
+            name='Historical Demand',
+            line=dict(color='#2E86AB', width=3),
+            marker=dict(size=8)
+        ))
+        
+        # Forecast uncertainty band
+        fig.add_trace(go.Scatter(
+            x=list(dates) + list(dates[::-1]),
+            y=upper_bound + lower_bound[::-1],
+            fill='toself',
+            fillcolor='rgba(46, 134, 171, 0.2)',
+            line=dict(color='rgba(255,255,255,0)'),
+            name='Confidence Interval',
+            showlegend=True
+        ))
+        
+        # Forecast line
+        fig.add_trace(go.Scatter(
+            x=dates,
+            y=forecast_demand,
+            mode='lines+markers',
+            name='AI Forecast',
+            line=dict(color='#F18F01', width=3, dash='dash'),
+            marker=dict(size=8, symbol='diamond')
+        ))
+        
+        # Add vertical line for current date - use shape instead of add_vline to avoid type issues
+        fig.add_shape(
+            type="line",
+            x0=current_time, x1=current_time,
+            y0=0, y1=1,
+            yref="paper",
+            line=dict(color="red", width=2, dash="solid"),
+        )
+        
+        # Add annotation for "Today"
+        fig.add_annotation(
+            x=current_time,
+            y=1.05,
+            yref="paper",
+            text="Today",
+            showarrow=False,
+            font=dict(color="red", size=12)
+        )
     
-    # Historical data
-    hist_dates = pd.date_range(start=datetime.now() - timedelta(days=7), periods=7, freq='D')
-    historical_demand = [base_demand + np.random.normal(0, 10) + 5 * np.sin(i * 0.5) for i in range(7)]
+    except Exception as e:
+        # Return empty figure on error
+        logger.error(f"Error in demand forecast chart: {e}")
+        fig = go.Figure()
+        fig.add_annotation(
+            x=0.5, y=0.5,
+            xref="paper", yref="paper",
+            text="Error loading forecast data",
+            showarrow=False,
+            font=dict(size=16, color="red")
+        )
     
-    # Forecast data with uncertainty
-    forecast_demand = [base_demand + np.random.normal(0, 5) + 10 * np.sin(i * 0.3) for i in range(14)]
-    upper_bound = [d * 1.2 for d in forecast_demand]
-    lower_bound = [d * 0.8 for d in forecast_demand]
-    
-    fig = go.Figure()
-    
-    # Historical data
-    fig.add_trace(go.Scatter(
-        x=hist_dates,
-        y=historical_demand,
-        mode='lines+markers',
-        name='Historical Demand',
-        line=dict(color='#2E86AB', width=3),
-        marker=dict(size=8)
-    ))
-    
-    # Forecast uncertainty band
-    fig.add_trace(go.Scatter(
-        x=list(dates) + list(dates[::-1]),
-        y=upper_bound + lower_bound[::-1],
-        fill='toself',
-        fillcolor='rgba(46, 134, 171, 0.2)',
-        line=dict(color='rgba(255,255,255,0)'),
-        name='Confidence Interval',
-        showlegend=True
-    ))
-    
-    # Forecast line
-    fig.add_trace(go.Scatter(
-        x=dates,
-        y=forecast_demand,
-        mode='lines+markers',
-        name='AI Forecast',
-        line=dict(color='#F18F01', width=3, dash='dash'),
-        marker=dict(size=8, symbol='diamond')
-    ))
-    
-    # Add vertical line for current date
-    fig.add_vline(
-        x=datetime.now(),
-        line_dash="solid",
-        line_color="red",
-        annotation_text="Today",
-        annotation_position="top"
-    )
+    # Create category-specific title
+    category_name = {
+        "fruits": "Fruits",
+        "vegetables": "Vegetables", 
+        "dairy": "Dairy Products",
+        "meat": "Meat & Seafood"
+    }.get(category, "All Categories")
     
     fig.update_layout(
-        title="7-Day Demand Forecast with Uncertainty Quantification",
+        title=f"7-Day Demand Forecast: {category_name}",
         xaxis_title="Date",
         yaxis_title="Demand (Units)",
         height=400,
