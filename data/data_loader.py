@@ -1,6 +1,7 @@
 """
-Data loader for Fresh Supply Chain Intelligence System
-Handles data ingestion from multiple sources including USDA, synthetic IoT data, and Fruits-360 dataset
+Enhanced Data Loader for Fresh Supply Chain Intelligence System
+Handles data ingestion from multiple sources with advanced validation, preprocessing, and error handling
+Integrates with the enhanced data processing pipeline for production-ready data operations
 """
 
 import pandas as pd
@@ -18,11 +19,37 @@ import json
 logger = logging.getLogger(__name__)
 
 class FreshSupplyDataLoader:
-    """Data loader for Fresh Supply Chain Intelligence System"""
+    """Enhanced data loader with validation, error handling, and lineage tracking"""
     
-    def __init__(self, connection_string: str):
+    def __init__(self, connection_string: str, enable_validation: bool = True, enable_lineage: bool = True):
         self.engine = create_engine(connection_string)
         self.connection_string = connection_string
+        self.enable_validation = enable_validation
+        self.enable_lineage = enable_lineage
+        
+        # Initialize enhanced components if available
+        self.validator = None
+        self.error_handler = None
+        self.lineage_tracker = None
+        
+        if enable_validation:
+            try:
+                from .data_validator import DataValidator
+                from .error_handler import AdvancedErrorHandler
+                self.validator = DataValidator(connection_string)
+                self.error_handler = AdvancedErrorHandler(connection_string)
+                self.error_handler.start_error_processing()
+                logger.info("Enhanced validation and error handling enabled")
+            except ImportError:
+                logger.warning("Enhanced validation components not available, using basic validation")
+        
+        if enable_lineage:
+            try:
+                from .data_lineage import DataLineageTracker, DataSource, DataOperation
+                self.lineage_tracker = DataLineageTracker(connection_string)
+                logger.info("Data lineage tracking enabled")
+            except ImportError:
+                logger.warning("Data lineage tracking not available")
         
     def download_usda_data(self, output_dir: str = './data/raw'):
         """Download USDA FoodData Central dataset"""
