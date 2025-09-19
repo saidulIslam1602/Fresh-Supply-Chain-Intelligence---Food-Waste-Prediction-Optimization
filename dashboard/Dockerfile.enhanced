@@ -1,0 +1,48 @@
+# Enhanced Dockerfile for Interactive Dashboard
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    g++ \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Create non-root user
+RUN groupadd -r dashuser && useradd -r -g dashuser dashuser
+
+# Copy requirements
+COPY dashboard/requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy dashboard code
+COPY dashboard/ .
+COPY config/ ./config/
+
+# Create necessary directories and set permissions
+RUN mkdir -p /app/logs \
+    && chown -R dashuser:dashuser /app
+
+# Switch to non-root user
+USER dashuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+# Expose port
+EXPOSE 3000
+
+# Run the enhanced dashboard
+CMD ["python", "enhanced_app.py"]
