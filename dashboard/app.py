@@ -38,10 +38,10 @@ logger = logging.getLogger(__name__)
 # Configuration
 @dataclass
 class DashboardConfig:
-    API_BASE_URL: str = "http://localhost:8000"
-    WS_URL: str = "ws://localhost:8000/ws/realtime"
-    DATABASE_URL: str = "mssql+pyodbc://sa:Saidul1602@localhost:1433/FreshSupplyChain?driver=ODBC+Driver+17+for+SQL+Server"
-    REDIS_URL: str = "redis://localhost:6379/0"
+    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
+    WS_URL: str = os.getenv("WS_URL", "ws://localhost:8000/ws/realtime")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "mssql+pyodbc://sa:Saidul1602@localhost:1433/FreshSupplyChain?driver=ODBC+Driver+17+for+SQL+Server")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     UPDATE_INTERVAL: int = 5000  # 5 seconds
     CACHE_TTL: int = 300  # 5 minutes
 
