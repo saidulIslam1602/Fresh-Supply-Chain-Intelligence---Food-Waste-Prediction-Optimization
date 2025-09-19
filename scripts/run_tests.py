@@ -1,149 +1,115 @@
 #!/usr/bin/env python3
 """
-Test runner script for Fresh Supply Chain Intelligence System
-Runs all tests with coverage reporting
+Enhanced Test Runner for Fresh Supply Chain Intelligence System
 """
 
-import sys
 import os
-import subprocess
+import sys
 import argparse
+import subprocess
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+import logging
 
-def run_tests(test_type="all", coverage=True, verbose=False):
-    """Run tests with specified options"""
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+class TestRunner:
+    """Enhanced test runner with comprehensive reporting"""
     
-    # Base pytest command
-    cmd = ["python", "-m", "pytest"]
+    def __init__(self, project_root: str = None):
+        self.project_root = Path(project_root) if project_root else Path(__file__).parent.parent
+        self.test_results = {}
+        self.start_time = None
+        self.end_time = None
+        
+    def run_command(self, command, capture_output=True):
+        """Run a command and return the result"""
+        logger.info(f"Running: {' '.join(command)}")
+        return subprocess.run(command, cwd=self.project_root, capture_output=capture_output, text=True)
     
-    # Add test directory
-    cmd.append("tests/")
+    def setup_environment(self):
+        """Setup test environment"""
+        logger.info("Setting up test environment...")
+        directories = ['test_reports', 'test_reports/coverage', 'test_reports/junit']
+        for directory in directories:
+            (self.project_root / directory).mkdir(parents=True, exist_ok=True)
     
-    # Add verbosity
-    if verbose:
-        cmd.append("-v")
-    
-    # Add coverage if requested
-    if coverage:
-        cmd.extend(["--cov=.", "--cov-report=html", "--cov-report=term"])
-    
-    # Add specific test type
-    if test_type == "unit":
-        cmd.extend(["-m", "not integration"])
-    elif test_type == "integration":
-        cmd.extend(["-m", "integration"])
-    elif test_type == "fast":
-        cmd.extend(["-m", "not slow"])
-    
-    # Add test discovery
-    cmd.extend(["--tb=short", "--strict-markers"])
-    
-    print(f"Running tests: {' '.join(cmd)}")
-    print("=" * 60)
-    
-    # Run tests
-    result = subprocess.run(cmd, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    
-    if result.returncode == 0:
-        print("\n✅ All tests passed!")
+    def run_unit_tests(self, verbose=False, coverage=True):
+        """Run unit tests"""
+        logger.info("Running unit tests...")
+        command = [
+            sys.executable, '-m', 'pytest', 'tests/unit/',
+            '-v' if verbose else '-q',
+            '--junitxml=test_reports/junit/unit_tests.xml'
+        ]
         if coverage:
-            print("📊 Coverage report generated in htmlcov/index.html")
-    else:
-        print("\n❌ Some tests failed!")
-        sys.exit(1)
-
-def run_linting():
-    """Run code linting"""
+            command.extend(['--cov=api', '--cov=models', '--cov=data'])
+        
+        result = self.run_command(command, capture_output=False)
+        self.test_results['unit'] = {'success': result.returncode == 0}
+        return self.test_results['unit']
     
-    print("Running code linting...")
-    print("=" * 40)
+    def run_integration_tests(self, verbose=False):
+        """Run integration tests"""
+        logger.info("Running integration tests...")
+        command = [
+            sys.executable, '-m', 'pytest', 'tests/integration/',
+            '-v' if verbose else '-q',
+            '--junitxml=test_reports/junit/integration_tests.xml'
+        ]
+        result = self.run_command(command, capture_output=False)
+        self.test_results['integration'] = {'success': result.returncode == 0}
+        return self.test_results['integration']
     
-    # Run black (code formatting)
-    print("Running black...")
-    result = subprocess.run(["python", "-m", "black", ".", "--check"], 
-                          cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    if result.returncode != 0:
-        print("❌ Code formatting issues found. Run 'black .' to fix.")
-        return False
-    
-    # Run flake8 (style checking)
-    print("Running flake8...")
-    result = subprocess.run(["python", "-m", "flake8", ".", "--max-line-length=100"], 
-                          cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    if result.returncode != 0:
-        print("❌ Style issues found.")
-        return False
-    
-    # Run mypy (type checking)
-    print("Running mypy...")
-    result = subprocess.run(["python", "-m", "mypy", ".", "--ignore-missing-imports"], 
-                          cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    if result.returncode != 0:
-        print("⚠️  Type checking issues found (non-critical).")
-    
-    print("✅ Linting completed!")
-    return True
-
-def run_security_scan():
-    """Run security scanning"""
-    
-    print("Running security scan...")
-    print("=" * 40)
-    
-    # Run bandit (security linting)
-    try:
-        result = subprocess.run(["python", "-m", "bandit", "-r", ".", "-f", "json"], 
-                              cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        if result.returncode != 0:
-            print("⚠️  Security issues found. Check bandit output.")
-        else:
-            print("✅ No security issues found!")
-    except FileNotFoundError:
-        print("⚠️  Bandit not installed. Install with: pip install bandit")
+    def run_all_tests(self, test_types=None, verbose=False, coverage=True):
+        """Run all specified test types"""
+        if test_types is None:
+            test_types = ['unit', 'integration']
+        
+        self.start_time = time.time()
+        self.setup_environment()
+        
+        if 'unit' in test_types:
+            self.run_unit_tests(verbose=verbose, coverage=coverage)
+        if 'integration' in test_types:
+            self.run_integration_tests(verbose=verbose)
+        
+        self.end_time = time.time()
+        
+        # Print summary
+        print("\n" + "="*50)
+        print("TEST SUMMARY")
+        print("="*50)
+        for test_type, result in self.test_results.items():
+            status = "✅ PASSED" if result['success'] else "❌ FAILED"
+            print(f"{test_type.upper()}: {status}")
+        print("="*50)
+        
+        return self.test_results
 
 def main():
-    """Main function"""
-    
-    parser = argparse.ArgumentParser(description="Run tests for Fresh Supply Chain Intelligence System")
-    parser.add_argument("--type", choices=["all", "unit", "integration", "fast"], 
-                       default="all", help="Type of tests to run")
-    parser.add_argument("--no-coverage", action="store_true", 
-                       help="Disable coverage reporting")
-    parser.add_argument("--verbose", "-v", action="store_true", 
-                       help="Verbose output")
-    parser.add_argument("--lint", action="store_true", 
-                       help="Run code linting")
-    parser.add_argument("--security", action="store_true", 
-                       help="Run security scan")
-    parser.add_argument("--all", action="store_true", 
-                       help="Run all checks (tests, linting, security)")
+    parser = argparse.ArgumentParser(description='Test Runner for Fresh Supply Chain Intelligence')
+    parser.add_argument('--types', nargs='+', choices=['unit', 'integration'], 
+                       default=['unit', 'integration'], help='Test types to run')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+    parser.add_argument('--no-coverage', action='store_true', help='Disable coverage')
     
     args = parser.parse_args()
+    runner = TestRunner()
     
-    if args.all:
-        print("🚀 Running all checks...")
-        print("=" * 60)
-        
-        # Run linting
-        if not run_linting():
-            print("❌ Linting failed!")
-            sys.exit(1)
-        
-        # Run security scan
-        run_security_scan()
-        
-        # Run tests
-        run_tests(args.type, not args.no_coverage, args.verbose)
-        
-    elif args.lint:
-        if not run_linting():
-            sys.exit(1)
+    results = runner.run_all_tests(
+        test_types=args.types,
+        verbose=args.verbose,
+        coverage=not args.no_coverage
+    )
     
-    elif args.security:
-        run_security_scan()
-    
-    else:
-        # Run tests
-        run_tests(args.type, not args.no_coverage, args.verbose)
+    # Exit with error if any tests failed
+    all_success = all(result['success'] for result in results.values())
+    sys.exit(0 if all_success else 1)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

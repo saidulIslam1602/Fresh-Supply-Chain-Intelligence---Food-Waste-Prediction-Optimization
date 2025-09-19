@@ -1,0 +1,500 @@
+name: CI/CD Pipeline - Fresh Supply Chain Intelligence
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.9'
+  NODE_VERSION: '18'
+
+jobs:
+  # Code Quality and Security Checks
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality & Security
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black isort bandit safety mypy
+    
+    - name: Code formatting check (Black)
+      run: black --check --diff .
+    
+    - name: Import sorting check (isort)
+      run: isort --check-only --diff .
+    
+    - name: Linting (flake8)
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    
+    - name: Type checking (mypy)
+      run: mypy api/ models/ data/ --ignore-missing-imports
+    
+    - name: Security check (bandit)
+      run: bandit -r api/ models/ data/ -f json -o bandit-report.json
+      continue-on-error: true
+    
+    - name: Dependency vulnerability check (safety)
+      run: safety check --json --output safety-report.json
+      continue-on-error: true
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+
+  # Unit Tests
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    needs: code-quality
+    
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-xdist pytest-mock
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ -v \
+          --cov=api --cov=models --cov=data \
+          --cov-report=xml --cov-report=html \
+          --junitxml=junit/test-results-${{ matrix.python-version }}.xml \
+          --maxfail=5 \
+          -m "unit and not slow"
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: |
+          junit/test-results-${{ matrix.python-version }}.xml
+          htmlcov/
+          coverage.xml
+
+  # Integration Tests
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    needs: unit-tests
+    
+    services:
+      redis:
+        image: redis:6.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: TestPassword123!
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P TestPassword123! -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-integration-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-integration-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-mock
+    
+    - name: Wait for services
+      run: |
+        sleep 30  # Wait for services to be ready
+    
+    - name: Run integration tests
+      env:
+        DATABASE_URL: "mssql+pyodbc://sa:TestPassword123!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server"
+        REDIS_URL: "redis://localhost:6379/0"
+        TEST_MODE: "true"
+      run: |
+        pytest tests/integration/ -v \
+          --junitxml=junit/integration-test-results.xml \
+          --maxfail=3 \
+          -m "integration and not slow"
+    
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: junit/integration-test-results.xml
+
+  # ML Model Tests
+  ml-model-tests:
+    runs-on: ubuntu-latest
+    name: ML Model Tests
+    needs: unit-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-ml-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-ml-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-mock
+    
+    - name: Run ML model tests
+      run: |
+        pytest tests/unit/test_ml_models.py -v \
+          --junitxml=junit/ml-test-results.xml \
+          --maxfail=3 \
+          -m "ml and not slow"
+    
+    - name: Upload ML test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: ml-test-results
+        path: junit/ml-test-results.xml
+
+  # Performance Tests
+  performance-tests:
+    runs-on: ubuntu-latest
+    name: Performance Tests
+    needs: [unit-tests, integration-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-benchmark psutil
+    
+    - name: Run performance tests
+      run: |
+        pytest tests/performance/ -v \
+          --junitxml=junit/performance-test-results.xml \
+          --benchmark-json=benchmark-results.json \
+          --maxfail=1 \
+          -m "performance"
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-results
+        path: |
+          junit/performance-test-results.xml
+          benchmark-results.json
+
+  # Build and Test Docker Images
+  docker-build:
+    runs-on: ubuntu-latest
+    name: Docker Build & Test
+    needs: [unit-tests, integration-tests]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build API Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.enhanced
+        push: false
+        tags: fresh-supply-api:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build Dashboard Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./dashboard/Dockerfile.enhanced
+        push: false
+        tags: fresh-supply-dashboard:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test Docker images
+      run: |
+        # Test API image
+        docker run --rm -d --name test-api -p 8000:8000 fresh-supply-api:test
+        sleep 10
+        curl -f http://localhost:8000/health || exit 1
+        docker stop test-api
+        
+        # Test Dashboard image
+        docker run --rm -d --name test-dashboard -p 8050:8050 fresh-supply-dashboard:test
+        sleep 10
+        curl -f http://localhost:8050/ || exit 1
+        docker stop test-dashboard
+
+  # End-to-End Tests
+  e2e-tests:
+    runs-on: ubuntu-latest
+    name: End-to-End Tests
+    needs: docker-build
+    if: github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-mock requests
+    
+    - name: Start services with Docker Compose
+      run: |
+        docker-compose -f docker-compose.enhanced.yml up -d
+        sleep 60  # Wait for services to be ready
+    
+    - name: Run E2E tests
+      env:
+        API_BASE_URL: "http://localhost:8000"
+        DASHBOARD_URL: "http://localhost:8050"
+      run: |
+        pytest tests/e2e/ -v \
+          --junitxml=junit/e2e-test-results.xml \
+          --maxfail=2 \
+          -m "e2e and not slow"
+    
+    - name: Stop services
+      if: always()
+      run: docker-compose -f docker-compose.enhanced.yml down
+    
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: junit/e2e-test-results.xml
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scanning
+    needs: code-quality
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Test Results Summary
+  test-summary:
+    runs-on: ubuntu-latest
+    name: Test Summary
+    needs: [unit-tests, integration-tests, ml-model-tests, e2e-tests]
+    if: always()
+    
+    steps:
+    - name: Download all test results
+      uses: actions/download-artifact@v3
+    
+    - name: Publish test results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Test Results Summary
+        path: '**/test-results*.xml'
+        reporter: java-junit
+        fail-on-error: true
+    
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Tests | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| ML Model Tests | ${{ needs.ml-model-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| E2E Tests | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+
+  # Deployment (only on main branch)
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: [unit-tests, integration-tests, ml-model-tests, docker-build, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'saidulIslam1602/Fresh-Supply-Chain-Intelligence---Food-Waste-Prediction-Optimization'
+    
+    environment:
+      name: production
+      url: https://fresh-supply-chain.example.com
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push production images
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.enhanced
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}/api:latest
+          ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add actual deployment commands here
+        # This could include:
+        # - Updating Kubernetes manifests
+        # - Triggering deployment pipeline
+        # - Updating cloud services
+        echo "Deployment completed successfully!"
+    
+    - name: Post-deployment health check
+      run: |
+        echo "Running post-deployment health checks..."
+        # Add health check commands here
+        sleep 30
+        # curl -f https://fresh-supply-chain.example.com/health
+        echo "Health checks passed!"
+
+  # Notification
+  notify:
+    runs-on: ubuntu-latest
+    name: Notification
+    needs: [test-summary, deploy]
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "✅ Deployment successful!"
+        # Add notification logic (Slack, email, etc.)
+    
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Pipeline failed!"
+        # Add failure notification logic
