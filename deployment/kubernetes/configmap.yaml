@@ -1,0 +1,207 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fresh-supply-chain-config
+  namespace: fresh-supply-chain
+  labels:
+    app: fresh-supply-chain-intelligence
+data:
+  # Database Configuration
+  DATABASE_HOST: "sqlserver-service"
+  DATABASE_PORT: "1433"
+  DATABASE_NAME: "FreshSupplyChainDB"
+  
+  # Redis Configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # API Configuration
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  API_WORKERS: "4"
+  
+  # Dashboard Configuration
+  DASHBOARD_HOST: "0.0.0.0"
+  DASHBOARD_PORT: "8050"
+  DASH_DEBUG: "0"
+  
+  # Monitoring Configuration
+  PROMETHEUS_PORT: "9090"
+  GRAFANA_PORT: "3000"
+  JAEGER_AGENT_HOST: "jaeger-agent"
+  JAEGER_AGENT_PORT: "6831"
+  
+  # Security Configuration
+  JWT_ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  
+  # Performance Configuration
+  CACHE_TTL: "3600"
+  MAX_CONNECTIONS: "100"
+  POOL_SIZE: "20"
+  
+  # ML Configuration
+  MODEL_PATH: "/app/models"
+  BATCH_SIZE: "32"
+  MAX_WORKERS: "4"
+  
+  # Logging Configuration
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  
+  # Environment
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: fresh-supply-chain
+  labels:
+    app: nginx
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        # Logging
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for" '
+                        'rt=$request_time uct="$upstream_connect_time" '
+                        'uht="$upstream_header_time" urt="$upstream_response_time"';
+
+        access_log /var/log/nginx/access.log main;
+
+        # Performance
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        client_max_body_size 100M;
+
+        # Gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types
+            text/plain
+            text/css
+            text/xml
+            text/javascript
+            application/json
+            application/javascript
+            application/xml+rss
+            application/atom+xml
+            image/svg+xml;
+
+        # Rate limiting
+        limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+        limit_req_zone $binary_remote_addr zone=dashboard:10m rate=5r/s;
+
+        # Upstream servers
+        upstream api_backend {
+            least_conn;
+            server api-service:8000 max_fails=3 fail_timeout=30s;
+            keepalive 32;
+        }
+
+        upstream dashboard_backend {
+            least_conn;
+            server dashboard-service:8050 max_fails=3 fail_timeout=30s;
+            keepalive 16;
+        }
+
+        # API Server
+        server {
+            listen 80;
+            server_name api.fresh-supply-chain.local;
+
+            # Security headers
+            add_header X-Frame-Options DENY;
+            add_header X-Content-Type-Options nosniff;
+            add_header X-XSS-Protection "1; mode=block";
+            add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+
+            # Rate limiting
+            limit_req zone=api burst=20 nodelay;
+
+            location / {
+                proxy_pass http://api_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # Timeouts
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 30s;
+                proxy_read_timeout 30s;
+                
+                # Health check
+                proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            }
+
+            location /health {
+                access_log off;
+                proxy_pass http://api_backend/health;
+            }
+        }
+
+        # Dashboard Server
+        server {
+            listen 80;
+            server_name dashboard.fresh-supply-chain.local;
+
+            # Security headers
+            add_header X-Frame-Options SAMEORIGIN;
+            add_header X-Content-Type-Options nosniff;
+            add_header X-XSS-Protection "1; mode=block";
+
+            # Rate limiting
+            limit_req zone=dashboard burst=10 nodelay;
+
+            location / {
+                proxy_pass http://dashboard_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # WebSocket support
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                
+                # Timeouts
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 30s;
+                proxy_read_timeout 300s;  # Longer for dashboard
+            }
+        }
+
+        # Default server (catch-all)
+        server {
+            listen 80 default_server;
+            server_name _;
+            return 444;
+        }
+    }

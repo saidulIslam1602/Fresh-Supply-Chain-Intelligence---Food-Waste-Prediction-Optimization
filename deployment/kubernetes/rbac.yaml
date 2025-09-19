@@ -1,0 +1,149 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fresh-supply-chain-sa
+  namespace: fresh-supply-chain
+  labels:
+    app: fresh-supply-chain-intelligence
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fresh-supply-chain-role
+  namespace: fresh-supply-chain
+  labels:
+    app: fresh-supply-chain-intelligence
+rules:
+# Allow reading ConfigMaps and Secrets
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+# Allow reading Services and Endpoints for service discovery
+- apiGroups: [""]
+  resources: ["services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+# Allow reading Pods for health checks and monitoring
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+# Allow creating Events for logging
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fresh-supply-chain-rolebinding
+  namespace: fresh-supply-chain
+  labels:
+    app: fresh-supply-chain-intelligence
+subjects:
+- kind: ServiceAccount
+  name: fresh-supply-chain-sa
+  namespace: fresh-supply-chain
+roleRef:
+  kind: Role
+  name: fresh-supply-chain-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-sa
+  namespace: fresh-supply-chain
+  labels:
+    app: prometheus
+    component: monitoring
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-cluster-role
+  labels:
+    app: prometheus
+    component: monitoring
+rules:
+# Allow reading nodes and node metrics
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "nodes/metrics"]
+  verbs: ["get", "list", "watch"]
+# Allow reading services and endpoints for service discovery
+- apiGroups: [""]
+  resources: ["services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+# Allow reading pods and pod metrics
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+# Allow reading ingresses
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+# Allow reading config maps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-cluster-rolebinding
+  labels:
+    app: prometheus
+    component: monitoring
+subjects:
+- kind: ServiceAccount
+  name: prometheus-sa
+  namespace: fresh-supply-chain
+roleRef:
+  kind: ClusterRole
+  name: prometheus-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: fresh-supply-chain
+  labels:
+    app: api
+    component: backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api
+      component: backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dashboard-pdb
+  namespace: fresh-supply-chain
+  labels:
+    app: dashboard
+    component: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: dashboard
+      component: frontend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: fresh-supply-chain
+  labels:
+    app: redis
+    component: cache
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: redis
+      component: cache
