@@ -40,7 +40,7 @@ import asyncpg
 from functools import wraps
 import aioredis
 from cachetools import TTLCache
-import zipkin
+# import zipkin  # Commented out - not used in current implementation
 from opentelemetry import trace
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 from opentelemetry.sdk.trace import TracerProvider
@@ -779,6 +779,7 @@ async def get_system_stats(current_user: User = Depends(get_current_active_user)
 @app.post(f"{config.API_V2_PREFIX}/batch/quality-predictions")
 @limiter.limit("10/minute")  # Lower rate limit for batch operations
 async def batch_quality_predictions(
+    request: Request,
     requests: List[EnhancedQualityPredictionRequest],
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user)

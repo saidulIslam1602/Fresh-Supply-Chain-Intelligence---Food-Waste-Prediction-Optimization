@@ -38,7 +38,7 @@ class CacheStrategy(Enum):
 @dataclass
 class CacheConfig:
     """Cache configuration"""
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     memory_cache_size: int = 1000
     memory_cache_ttl: int = 300  # 5 minutes
     redis_ttl: int = 3600  # 1 hour
