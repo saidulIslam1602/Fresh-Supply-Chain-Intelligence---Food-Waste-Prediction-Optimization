@@ -1,35 +1,33 @@
 # Fresh Supply Chain Intelligence System
 
-AI-powered solution for food waste reduction and supply chain optimization in the Nordic fresh produce industry.
+AI-powered solution for food waste reduction and supply chain optimization in the fresh produce industry.
 
 ## Business Problem
 
-The fresh produce industry loses 50-100 million EUR annually in the Nordic region due to:
+The fresh produce industry faces significant challenges that impact profitability and sustainability:
 - 30% food waste across the supply chain
 - Manual quality assessment leading to inconsistent decisions
 - Poor demand forecasting causing stockouts and overstock
-- Temperature violations compromising 25% of shipments
-- Suboptimal routing increasing transportation costs by 20%
+- Temperature violations compromising cold chain integrity
+- Suboptimal routing increasing transportation costs
 
 ## AI Solution
 
 Four core capabilities that directly address these problems:
 
-| Problem | AI Solution | Business Impact |
-|---------|-------------|-----------------|
-| Food Waste (30%) | Computer Vision Quality Assessment | 15-25% waste reduction |
-| Poor Forecasting | Time Series AI (TFT) | 95% OTIF delivery rate |
-| Inefficient Routes | Graph Neural Network Optimization | 10-20% cost savings |
-| Temperature Issues | Real-time IoT Monitoring | 98% compliance rate |
-
-**Total ROI: 4.8M EUR annually with 340% return on investment**
+| Problem | AI Solution | Implementation |
+|---------|-------------|----------------|
+| Food Waste | Computer Vision Quality Assessment | EfficientNet-B4 with 5-class quality prediction |
+| Poor Forecasting | Time Series AI (TFT) | Temporal Fusion Transformer with uncertainty quantification |
+| Inefficient Routes | Graph Neural Network Optimization | GNN + Gurobi solver for route optimization |
+| Temperature Issues | Real-time IoT Monitoring | WebSocket-based live monitoring system |
 
 ## System Architecture
 
 ```
 AI/ML Core              Real Data Foundation        Production API
 ├── Computer Vision     ├── 787,526 USDA Products  ├── Quality Assessment
-├── Time Series AI      ├── 5 Nordic Warehouses    ├── Demand Forecasting  
+├── Time Series AI      ├── 5 Warehouse Locations   ├── Demand Forecasting  
 ├── Route Optimization  ├── IoT Sensor Network      ├── Route Optimization
 └── Real-time Analytics └── Supply Chain Events    └── Live Monitoring
 ```
@@ -59,8 +57,8 @@ python load_real_data.py
 ```bash
 POST /api/v1/predict/quality
 # Input: Product image, lot number, warehouse
-# Output: Quality score (0-1), freshness label, shelf life prediction
-# Impact: 85% accuracy, replaces manual inspection
+# Output: Quality score (0-1), freshness label (Fresh/Good/Fair/Poor/Spoiled)
+# Model: EfficientNet-B4 with custom classifier
 ```
 
 ### 2. Demand Forecasting API
@@ -68,7 +66,7 @@ POST /api/v1/predict/quality
 POST /api/v1/forecast/demand  
 # Input: Product ID, warehouse, forecast horizon
 # Output: 7-day demand forecast with confidence intervals
-# Impact: 95% OTIF rate, 20% inventory improvement
+# Model: Temporal Fusion Transformer with attention mechanism
 ```
 
 ### 3. Route Optimization API
@@ -76,64 +74,72 @@ POST /api/v1/forecast/demand
 POST /api/v1/optimize/distribution
 # Input: Products, warehouses, constraints
 # Output: Optimal routes, cost savings, waste reduction
-# Impact: 10-20% cost reduction, 25% carbon footprint improvement
+# Model: Graph Neural Network + Gurobi optimization
 ```
 
 ### 4. Real-time Monitoring
 ```bash
 WebSocket /ws/temperature-monitor
 # Output: Live temperature, humidity, quality alerts
-# Impact: 98% compliance, proactive quality management
+# Implementation: Real-time IoT data streaming
 ```
 
-## Business Impact
+## Technical Implementation
 
-Financial Impact:
-- 2.5M EUR annually from 20% waste reduction
-- 1.8M EUR from optimized transportation routes  
-- 800K EUR from improved inventory turnover
-- Total ROI: 340% (12-month projection)
+### API Endpoints (10 total)
+- GET / - Root endpoint with system status
+- GET /api/v1/products - USDA product catalog
+- GET /api/v1/warehouses - Warehouse locations
+- GET /api/v1/iot/readings - IoT sensor data
+- GET /api/v1/analytics/categories - Product analytics
+- POST /api/v1/predict/quality - Quality prediction
+- POST /api/v1/forecast/demand - Demand forecasting
+- POST /api/v1/optimize/distribution - Route optimization
+- GET /api/v1/metrics/kpi - Key performance indicators
+- WebSocket /ws/temperature-monitor - Real-time monitoring
 
-Operational Excellence:
-- 95% OTIF delivery rate (vs 87% industry avg)
-- 98% temperature compliance (vs 75% baseline)
-- 85% quality prediction accuracy
-- 20% improvement in inventory turnover
+### ML Models
+- **Vision Model**: EfficientNet-B4 with custom classifier (5 quality classes)
+- **Forecasting Model**: Temporal Fusion Transformer (256 hidden units, 8 attention heads)
+- **Optimization Model**: Graph Neural Network with Gurobi solver
+- **Real-time Analytics**: IoT data processing with quality scoring
 
-Sustainability Goals:
-- 25% reduction in carbon footprint
-- 1,247 tons food waste prevented YTD
-- Norwegian food safety compliance
+### Data Foundation
+- **787,526 USDA Products**: Real food database with nutritional information
+- **5 Warehouse Locations**: Configurable warehouse network
+- **IoT Sensor Network**: Temperature, humidity, CO2, ethylene monitoring
+- **Supply Chain Events**: Waste tracking and transportation data
 
 ## Technical Stack
 
 Project Structure:
-- api/ - FastAPI application (15+ endpoints)
+- api/ - FastAPI application with 10 endpoints
 - models/ - ML models (Vision, TFT, GNN, Optimization)
-- data/ - Real USDA data (787K+ products)
-- config/ - Database & Redis configuration
+- data/ - Real USDA data loader and processing
+- config/ - Database (SQL Server) & Redis configuration
 - monitoring/ - Prometheus + Grafana dashboards
-- tests/ - Comprehensive test suite (94% coverage)
+- tests/ - Test suite covering API and models
 
 Technology Stack:
 - Backend: FastAPI, Python 3.11+, SQL Server, Redis
-- ML/AI: TensorFlow, PyTorch, scikit-learn, Gurobi
+- ML/AI: PyTorch, TensorFlow, scikit-learn, Gurobi
 - Monitoring: Prometheus, Grafana, Docker
-- Performance: <200ms API response, 99.9% uptime
+- Testing: pytest with API and model tests
 
-## Nordic Market Specialization
+## Data Sources
 
-BAMA Alignment:
-- Mission: "En sunnere og ferskere framtid" (A healthier and fresher future)
-- Coverage: 5 Nordic warehouses (Oslo, Bergen, Trondheim, Stockholm, Copenhagen)
-- Compliance: Norwegian food safety standards
-- Focus: Fresh fruits and vegetables optimization
+Real Data Integration:
+- **USDA FoodData Central**: 787,526 real food products with nutritional data
+- **Warehouse Network**: 5 configurable locations with capacity and coordinates
+- **IoT Simulation**: Norwegian climate-based sensor data generation
+- **Supply Chain Modeling**: Realistic waste patterns and transportation costs
 
-Real Data Foundation:
-- 787,526 USDA Products: Real nutritional data and shelf life
-- 5 Nordic Warehouses: Actual coordinates and capacity data
-- IoT Sensor Network: Norwegian climate-based monitoring
-- Supply Chain Events: Realistic waste and transportation patterns
+Database Schema:
+- Products table with real USDA data
+- Warehouses with location and capacity information
+- TemperatureLogs for IoT sensor data (time-series optimized)
+- WasteEvents for tracking and analysis
+- Inventory management with lot tracking
 
 ## Deployment
 
@@ -147,15 +153,29 @@ pip install -r requirements.txt
 python scripts/start_services.py
 
 # Run tests
-pytest tests/ -v --cov=.
+pytest tests/ -v
 ```
 
-Key Metrics:
-- Test Coverage: 94% (comprehensive test suite)
-- API Performance: <200ms response time, 99.9% uptime
-- Security: JWT authentication, GDPR compliance
-- Scalability: Kubernetes-ready, auto-scaling
+Key Features:
+- Containerized deployment with Docker Compose
+- SQL Server database with real USDA data
+- Redis caching for performance
+- JWT authentication for API security
+- Comprehensive test suite for reliability
+- Production-ready monitoring with Prometheus/Grafana
 
-Built for BAMA's Mission: "En sunnere og ferskere framtid"
+## Performance Characteristics
 
-Demonstrating world-class expertise in AI, Data Science, and Business Intelligence for the Nordic fresh produce industry.
+API Performance:
+- Response time target: <200ms for predictions
+- Concurrent request handling with FastAPI
+- Redis caching for frequently accessed data
+- Database optimized for time-series queries
+
+Model Performance:
+- Computer Vision: 5-class quality classification
+- Time Series: 7-day forecast horizon with uncertainty
+- Optimization: Multi-constraint route planning
+- Real-time: WebSocket streaming for live data
+
+Built for demonstrating advanced data science capabilities in supply chain optimization and food waste reduction.
