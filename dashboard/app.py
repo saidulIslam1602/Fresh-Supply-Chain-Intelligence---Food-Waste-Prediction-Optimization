@@ -680,30 +680,20 @@ def update_last_update_time(n):
 def update_enhanced_kpis(n):
     """Update KPIs with trend indicators"""
     
-    def get_kpi_data():
+    try:
         # Try to get real KPI data from API
-        try:
-            api_data = fetch_api_data("/api/v1/metrics/kpi")
-            if api_data and "kpis" in api_data:
-                return api_data["kpis"]
-        except Exception as e:
-            logger.warning(f"Failed to fetch real KPI data: {e}")
-        
-        # Fallback: Try database calculation
-        if engine:
-            try:
-                # Real KPI calculations from database
-                with engine.connect() as conn:
-                    # This would be real SQL queries
-                    pass
-            except Exception as e:
-                logger.error(f"KPI calculation error: {e}")
-        
-        # Final fallback to mock data
+        api_data = fetch_api_data("/api/v1/metrics/kpi")
+        if api_data and "kpis" in api_data:
+            kpis = api_data["kpis"]
+        else:
+            # Fallback to mock data
+            mock_data = generate_mock_data()
+            kpis = mock_data["kpis"]
+    except Exception as e:
+        logger.warning(f"Failed to fetch KPI data: {e}")
+        # Fallback to mock data
         mock_data = generate_mock_data()
-        return mock_data["kpis"]
-    
-    kpis = get_kpi_data()  # Get fresh data each time to see real updates
+        kpis = mock_data["kpis"]
     
     # Generate trend indicators
     def create_trend_indicator(value, target, is_higher_better=True):
@@ -760,31 +750,29 @@ def toggle_auto_refresh(auto_refresh_on):
 def update_temperature_chart(n, time_range, warehouse):
     """Create enhanced temperature monitoring chart"""
     
-    def get_temperature_data():
+    try:
         # Try to get real IoT data from API
-        try:
-            api_data = fetch_api_data("/api/v1/iot/readings")
-            if api_data and "readings" in api_data:
-                # Convert API data to dashboard format
-                temp_data = []
-                for reading in api_data["readings"]:
-                    temp_data.append({
-                        "timestamp": reading["timestamp"],
-                        "warehouse_id": int(reading["sensor_id"].split("_")[1]) if "_" in reading["sensor_id"] else 1,
-                        "temperature": reading["temperature"],
-                        "humidity": reading["humidity"],
-                        "quality_score": 0.85 + (reading["temperature"] - 4.5) * 0.1  # Quality based on temp
-                    })
-                return temp_data
-        except Exception as e:
-            logger.warning(f"Failed to fetch real IoT data: {e}")
-        
-        # Fallback to mock data if API fails
+        api_data = fetch_api_data("/api/v1/iot/readings")
+        if api_data and "readings" in api_data:
+            # Convert API data to dashboard format
+            temp_data = []
+            for reading in api_data["readings"]:
+                temp_data.append({
+                    "timestamp": reading["timestamp"],
+                    "warehouse_id": int(reading["warehouse_id"]) if "warehouse_id" in reading else 1,
+                    "temperature": reading["temperature"],
+                    "humidity": reading["humidity"],
+                    "quality_score": 0.85 + (reading["temperature"] - 4.5) * 0.1
+                })
+        else:
+            # Fallback to mock data
+            mock_data = generate_mock_data()
+            temp_data = mock_data["temperature_data"]
+    except Exception as e:
+        logger.warning(f"Failed to fetch IoT data: {e}")
+        # Fallback to mock data
         mock_data = generate_mock_data()
-        return mock_data["temperature_data"]
-    
-    # Get real data from API or fallback to mock
-    temp_data = get_temperature_data()
+        temp_data = mock_data["temperature_data"]
     
     if not temp_data:
         return go.Figure()
