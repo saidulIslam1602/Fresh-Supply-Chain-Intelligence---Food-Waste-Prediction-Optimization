@@ -33,6 +33,14 @@ class ValidationResult:
     affected_rows: int = 0
     details: Dict[str, Any] = None
 
+@dataclass
+class ValidationRule:
+    """Custom validation rule"""
+    name: str
+    description: str
+    validation_function: Any
+    severity: str = "error"
+
 class DataValidator:
     """Comprehensive data validation framework"""
     
@@ -40,6 +48,7 @@ class DataValidator:
         self.connection_string = connection_string
         self.engine = create_engine(connection_string) if connection_string else None
         self.validation_results: List[ValidationResult] = []
+        self.rules: List[ValidationRule] = []
         
         # Define validation rules
         self.usda_schema = {
@@ -65,6 +74,11 @@ class DataValidator:
             'EthyleneLevel': {'type': float, 'min_value': 0, 'max_value': 1, 'required': True},
             'QualityScore': {'type': float, 'min_value': 0, 'max_value': 1, 'required': True}
         }
+    
+    def add_rule(self, rule: ValidationRule) -> None:
+        """Add a custom validation rule"""
+        self.rules.append(rule)
+        logger.info(f"Added validation rule: {rule.name}")
     
     def validate_usda_products(self, df: pd.DataFrame) -> List[ValidationResult]:
         """Comprehensive validation for USDA product data"""

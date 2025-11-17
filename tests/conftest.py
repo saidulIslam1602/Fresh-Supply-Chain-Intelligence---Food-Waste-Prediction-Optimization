@@ -29,7 +29,7 @@ structlog.configure(
         structlog.testing.LogCapture(),
         structlog.dev.ConsoleRenderer()
     ],
-    logger_factory=structlog.testing.TestingLoggerFactory(),
+    logger_factory=structlog.testing.CapturingLoggerFactory(),
     cache_logger_on_first_use=True,
 )
 

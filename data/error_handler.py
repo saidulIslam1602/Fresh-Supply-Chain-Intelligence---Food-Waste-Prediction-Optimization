@@ -21,8 +21,8 @@ from pathlib import Path
 import threading
 from queue import Queue
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import requests
 
 logger = logging.getLogger(__name__)
@@ -830,7 +830,7 @@ class AdvancedErrorHandler:
         """Send email notification for critical errors"""
         
         try:
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = self.email_config['username']
             msg['To'] = ', '.join(self.email_config['recipients'])
             msg['Subject'] = f"CRITICAL ERROR: {error_event.component} - {error_event.message[:50]}..."
@@ -854,7 +854,7 @@ class AdvancedErrorHandler:
             Please investigate immediately.
             """
             
-            msg.attach(MimeText(body, 'plain'))
+            msg.attach(MIMEText(body, 'plain'))
             
             server = smtplib.SMTP(self.email_config['smtp_server'], self.email_config['smtp_port'])
             server.starttls()

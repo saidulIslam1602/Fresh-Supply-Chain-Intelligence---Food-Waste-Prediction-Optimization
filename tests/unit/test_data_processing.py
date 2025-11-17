@@ -17,8 +17,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from data.data_validator import DataValidator, ValidationRule, ValidationResult
-from data.advanced_preprocessor import AdvancedDataPreprocessor
-from data.feature_engineer import FeatureEngineer
+from data.advanced_preprocessor import AdvancedPreprocessor
+from data.feature_engineer import AdvancedFeatureEngineer
 from data.error_handler import AdvancedErrorHandler, ErrorSeverity
 from data.data_lineage import DataLineageTracker, DataSource, DataOperation
 
@@ -130,19 +130,19 @@ class TestDataValidator:
         assert result.is_valid
 
 @pytest.mark.unit
-class TestAdvancedDataPreprocessor:
-    """Unit tests for AdvancedDataPreprocessor"""
+class TestAdvancedPreprocessor:
+    """Unit tests for AdvancedPreprocessor"""
     
     def test_preprocessor_initialization(self):
         """Test preprocessor initialization"""
-        preprocessor = AdvancedDataPreprocessor()
+        preprocessor = AdvancedPreprocessor()
         assert preprocessor.imputation_strategy == 'knn'
         assert preprocessor.outlier_method == 'iqr'
         assert preprocessor.scaling_method == 'standard'
     
     def test_missing_value_imputation(self):
         """Test missing value imputation"""
-        preprocessor = AdvancedDataPreprocessor(imputation_strategy='mean')
+        preprocessor = AdvancedPreprocessor(imputation_strategy='mean')
         
         data = pd.DataFrame({
             'temperature': [2.5, np.nan, 4.5, 2.0, 5.0],
@@ -156,7 +156,7 @@ class TestAdvancedDataPreprocessor:
     
     def test_outlier_detection_iqr(self):
         """Test outlier detection using IQR method"""
-        preprocessor = AdvancedDataPreprocessor(outlier_method='iqr')
+        preprocessor = AdvancedPreprocessor(outlier_method='iqr')
         
         # Create data with obvious outliers
         normal_data = np.random.normal(4, 1, 100)
@@ -173,7 +173,7 @@ class TestAdvancedDataPreprocessor:
     
     def test_outlier_detection_zscore(self):
         """Test outlier detection using Z-score method"""
-        preprocessor = AdvancedDataPreprocessor(outlier_method='zscore')
+        preprocessor = AdvancedPreprocessor(outlier_method='zscore')
         
         # Create data with outliers
         normal_data = np.random.normal(4, 1, 100)
@@ -188,7 +188,7 @@ class TestAdvancedDataPreprocessor:
     
     def test_data_normalization(self):
         """Test data normalization"""
-        preprocessor = AdvancedDataPreprocessor(scaling_method='standard')
+        preprocessor = AdvancedPreprocessor(scaling_method='standard')
         
         data = pd.DataFrame({
             'temperature': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
@@ -205,7 +205,7 @@ class TestAdvancedDataPreprocessor:
     
     def test_text_normalization(self):
         """Test text normalization"""
-        preprocessor = AdvancedDataPreprocessor()
+        preprocessor = AdvancedPreprocessor()
         
         data = pd.DataFrame({
             'product_name': ['  Fresh SALMON  ', 'organic apples', 'LEAFY greens', None],
@@ -221,7 +221,7 @@ class TestAdvancedDataPreprocessor:
     
     def test_data_type_optimization(self):
         """Test data type optimization"""
-        preprocessor = AdvancedDataPreprocessor()
+        preprocessor = AdvancedPreprocessor()
         
         data = pd.DataFrame({
             'small_int': [1, 2, 3, 4, 5],  # Can be int8
@@ -238,17 +238,17 @@ class TestAdvancedDataPreprocessor:
         assert optimized_data['category_data'].dtype.name == 'category'
 
 @pytest.mark.unit
-class TestFeatureEngineer:
+class TestAdvancedFeatureEngineer:
     """Unit tests for FeatureEngineer"""
     
     def test_feature_engineer_initialization(self):
         """Test feature engineer initialization"""
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         assert engineer.feature_history == []
     
     def test_time_based_features(self):
         """Test time-based feature creation"""
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         
         dates = pd.date_range(start='2024-01-01', periods=10, freq='D')
         data = pd.DataFrame({
@@ -267,7 +267,7 @@ class TestFeatureEngineer:
     
     def test_lag_features(self):
         """Test lag feature creation"""
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         
         data = pd.DataFrame({
             'value': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -285,7 +285,7 @@ class TestFeatureEngineer:
     
     def test_rolling_features(self):
         """Test rolling window feature creation"""
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         
         data = pd.DataFrame({
             'value': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -302,7 +302,7 @@ class TestFeatureEngineer:
     
     def test_domain_specific_features(self):
         """Test domain-specific feature creation"""
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         
         data = pd.DataFrame({
             'temperature': [2.0, 4.0, 6.0, 8.0, 3.0],
@@ -322,7 +322,7 @@ class TestFeatureEngineer:
     
     def test_interaction_features(self):
         """Test interaction feature creation"""
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         
         data = pd.DataFrame({
             'temperature': [2.0, 4.0, 6.0, 8.0],
@@ -510,8 +510,8 @@ class TestDataProcessingIntegration:
         """Test complete data processing pipeline"""
         # Initialize components
         validator = DataValidator()
-        preprocessor = AdvancedDataPreprocessor()
-        engineer = FeatureEngineer()
+        preprocessor = AdvancedPreprocessor()
+        engineer = AdvancedFeatureEngineer()
         error_handler = AdvancedErrorHandler()
         lineage_tracker = DataLineageTracker()
         
