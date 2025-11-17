@@ -16,6 +16,7 @@ import pandas as pd
 from unittest.mock import patch, Mock
 import psutil
 import gc
+import torch
 
 # Import system components
 import sys

@@ -20,7 +20,7 @@ SQL_SERVER_CONFIG = {
     'server': os.getenv('SQL_SERVER', 'localhost'),
     'database': os.getenv('SQL_DATABASE', 'FreshSupplyChain'),
     'username': os.getenv('SQL_USERNAME', 'sa'),
-    'password': 'Saidul1602',
+    'password': os.getenv('SQL_PASSWORD', 'Saidul1602'),
     'driver': os.getenv('SQL_DRIVER', 'ODBC Driver 17 for SQL Server'),
     'port': os.getenv('SQL_PORT', '1433')
 }

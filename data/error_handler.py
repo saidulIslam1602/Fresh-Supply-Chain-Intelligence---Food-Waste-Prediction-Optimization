@@ -23,6 +23,7 @@ from queue import Queue
 import smtplib
 from email.mime.text import MimeText
 from email.mime.multipart import MimeMultipart
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -980,7 +981,7 @@ def setup_error_handling_system(connection_string: str = None) -> AdvancedErrorH
     # Add custom notification handler
     def log_critical_errors(error_event: ErrorEvent):
         if error_event.severity == ErrorSeverity.CRITICAL:
-            print(f"🚨 CRITICAL ERROR: {error_event.message}")
+            print(f"CRITICAL ERROR: {error_event.message}")
     
     error_handler.add_notification_handler(log_critical_errors)
     

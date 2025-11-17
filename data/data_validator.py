@@ -682,12 +682,12 @@ class DataValidator:
         
         if critical_issues:
             recommendations.append(
-                "🚨 CRITICAL: Fix critical data issues immediately before proceeding with analysis"
+                "CRITICAL: Fix critical data issues immediately before proceeding with analysis"
             )
         
         if error_issues:
             recommendations.append(
-                "⚠️ HIGH PRIORITY: Address data errors to ensure reliable model performance"
+                "HIGH PRIORITY: Address data errors to ensure reliable model performance"
             )
         
         # Specific recommendations based on common issues
@@ -695,22 +695,22 @@ class DataValidator:
         
         if any('Null Check' in issue for issue in issue_types):
             recommendations.append(
-                "📝 Implement data imputation strategies for missing values"
+                "NOTE: Implement data imputation strategies for missing values"
             )
         
         if any('Outliers' in issue for issue in issue_types):
             recommendations.append(
-                "📊 Review outliers - they may indicate data quality issues or interesting patterns"
+                "DATA: Review outliers - they may indicate data quality issues or interesting patterns"
             )
         
         if any('Temperature' in issue for issue in issue_types):
             recommendations.append(
-                "🌡️ Check IoT sensor calibration and cold chain monitoring systems"
+                "SENSOR: Check IoT sensor calibration and cold chain monitoring systems"
             )
         
         if any('Duplicate' in issue for issue in issue_types):
             recommendations.append(
-                "🔄 Implement deduplication processes in data ingestion pipeline"
+                "PROCESS: Implement deduplication processes in data ingestion pipeline"
             )
         
         return recommendations

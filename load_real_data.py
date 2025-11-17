@@ -39,16 +39,16 @@ def download_real_usda_data():
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall('./data/real/')
         
-        print("✅ USDA data downloaded and extracted successfully")
+        print("[SUCCESS] USDA data downloaded and extracted successfully")
         return './data/real'
         
     except Exception as e:
-        print(f"❌ Error downloading USDA data: {e}")
+        print(f"[ERROR] Error downloading USDA data: {e}")
         return None
 
 def load_real_products(usda_dir):
     """Load real USDA products into database"""
-    print("📦 Loading real USDA products...")
+    print("Products: Loading real USDA products...")
     
     try:
         # Read USDA food data
@@ -133,16 +133,16 @@ def load_real_products(usda_dir):
         products_df = pd.DataFrame(products_data)
         products_df.to_sql('Products', engine, if_exists='append', index=False)
         
-        print(f"✅ Loaded {len(products_df)} real USDA products")
+        print(f"[SUCCESS] Loaded {len(products_df)} real USDA products")
         return products_df
         
     except Exception as e:
-        print(f"❌ Error loading USDA products: {e}")
+        print(f"[ERROR] Error loading USDA products: {e}")
         return None
 
 def create_real_warehouses():
     """Create real Norwegian warehouse locations"""
-    print("🏢 Creating real Norwegian warehouses...")
+    print("Creating real Norwegian warehouses...")
     
     # Real Norwegian warehouse locations
     warehouses = [
@@ -203,12 +203,12 @@ def create_real_warehouses():
     warehouses_df = pd.DataFrame(warehouses)
     warehouses_df.to_sql('Warehouses', engine, if_exists='append', index=False)
     
-    print(f"✅ Created {len(warehouses)} real Nordic warehouses")
+    print(f"[SUCCESS] Created {len(warehouses)} real Nordic warehouses")
     return warehouses_df
 
 def generate_real_iot_data():
     """Generate realistic IoT sensor data based on real Norwegian climate"""
-    print("🌡️ Generating realistic IoT sensor data...")
+    print("IoT: Generating realistic IoT sensor data...")
     
     engine = get_database_engine()
     
@@ -270,24 +270,24 @@ def generate_real_iot_data():
     iot_df = pd.DataFrame(iot_data)
     iot_df.to_sql('TemperatureLogs', engine, if_exists='append', index=False)
     
-    print(f"✅ Generated {len(iot_df)} realistic IoT sensor readings")
+    print(f"[SUCCESS] Generated {len(iot_df)} realistic IoT sensor readings")
     return iot_df
 
 def main():
     """Main function to load all real datasets"""
-    print("🚀 Loading real datasets for Fresh Supply Chain Intelligence System")
+    print("Loading: Loading real datasets for Fresh Supply Chain Intelligence System")
     print("=" * 70)
     
     # 1. Download real USDA data
     usda_dir = download_real_usda_data()
     if not usda_dir:
-        print("❌ Failed to download USDA data")
+        print("[ERROR] Failed to download USDA data")
         return
     
     # 2. Load real products
     products_df = load_real_products(usda_dir)
     if products_df is None:
-        print("❌ Failed to load products")
+        print("[ERROR] Failed to load products")
         return
     
     # 3. Create real warehouses
@@ -297,11 +297,11 @@ def main():
     iot_df = generate_real_iot_data()
     
     print("\n" + "=" * 70)
-    print("✅ Real datasets loaded successfully!")
-    print(f"📦 Products: {len(products_df)} real USDA items")
-    print(f"🏢 Warehouses: {len(warehouses_df)} Nordic locations")
-    print(f"🌡️ IoT Readings: {len(iot_df)} realistic sensor data points")
-    print("\n🎯 You can now access visualizations at:")
+    print("[SUCCESS] Real datasets loaded successfully!")
+    print(f"Products: Products: {len(products_df)} real USDA items")
+    print(f"Warehouses: {len(warehouses_df)} Nordic locations")
+    print(f"IoT: IoT Readings: {len(iot_df)} realistic sensor data points")
+    print("\nAccess points:")
     print("   • Jupyter Notebooks: http://localhost:8888")
     print("   • API Documentation: http://localhost:8000/docs")
     print("   • API Endpoints: http://localhost:8000/")

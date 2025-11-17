@@ -85,7 +85,7 @@ class TestRunner:
         print("TEST SUMMARY")
         print("="*50)
         for test_type, result in self.test_results.items():
-            status = "✅ PASSED" if result['success'] else "❌ FAILED"
+            status = "[SUCCESS] PASSED" if result['success'] else "[ERROR] FAILED"
             print(f"{test_type.upper()}: {status}")
         print("="*50)
         

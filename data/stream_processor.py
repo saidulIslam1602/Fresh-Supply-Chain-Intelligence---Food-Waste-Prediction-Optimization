@@ -700,7 +700,7 @@ if __name__ == "__main__":
     # Add custom event handlers
     def log_critical_alerts(alert: QualityAlert):
         if alert.alert_level == 'critical':
-            print(f"🚨 CRITICAL ALERT: {alert.alert_reason}")
+            print(f"CRITICAL ALERT: {alert.alert_reason}")
     
     processor.add_event_handler('quality_alert', log_critical_alerts)
     

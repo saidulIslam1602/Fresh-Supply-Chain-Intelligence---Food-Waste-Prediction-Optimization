@@ -438,9 +438,9 @@ def main():
         return
     
     logger.info("Production database setup completed successfully!")
-    logger.info("✅ Database: FreshSupplyChain")
-    logger.info("✅ Tables: Products, Warehouses, Inventory, TemperatureLogs, WasteEvents, Deliveries, DemandForecasts, QualityInspections, SupplyChainNodes, SupplyChainEdges")
-    logger.info("✅ Real Norwegian supply chain data loaded")
+    logger.info("[SUCCESS] Database: FreshSupplyChain")
+    logger.info("[SUCCESS] Tables: Products, Warehouses, Inventory, TemperatureLogs, WasteEvents, Deliveries, DemandForecasts, QualityInspections, SupplyChainNodes, SupplyChainEdges")
+    logger.info("[SUCCESS] Real Norwegian supply chain data loaded")
 
 if __name__ == "__main__":
     main()

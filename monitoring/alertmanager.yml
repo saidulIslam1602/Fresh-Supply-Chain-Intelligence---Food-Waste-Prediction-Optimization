@@ -101,9 +101,9 @@ receivers:
   - name: 'critical-alerts'
     email_configs:
       - to: 'critical@freshsupply.com'
-        subject: '🚨 CRITICAL: [Fresh Supply Chain] {{ .GroupLabels.alertname }}'
+        subject: '[CRITICAL]: [Fresh Supply Chain] {{ .GroupLabels.alertname }}'
         body: |
-          🚨 CRITICAL ALERT 🚨
+          [CRITICAL ALERT]
           
           {{ range .Alerts }}
           Alert: {{ .Annotations.summary }}
@@ -123,7 +123,7 @@ receivers:
     slack_configs:
       - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK'
         channel: '#critical-alerts'
-        title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+        title: '[Critical Alert]: {{ .GroupLabels.alertname }}'
         text: |
           {{ range .Alerts }}
           *Alert:* {{ .Annotations.summary }}

@@ -21,7 +21,7 @@ class ServiceManager:
         
     def start_service(self, name, command, cwd=None, env=None):
         """Start a service"""
-        print(f"🚀 Starting {name}...")
+        print(f"Loading: Starting {name}...")
         
         try:
             process = subprocess.Popen(
@@ -34,7 +34,7 @@ class ServiceManager:
             )
             
             self.processes[name] = process
-            print(f"✅ {name} started with PID {process.pid}")
+            print(f"[SUCCESS] {name} started with PID {process.pid}")
             
             # Start monitoring thread
             thread = threading.Thread(target=self._monitor_service, args=(name, process))
@@ -44,7 +44,7 @@ class ServiceManager:
             return process
             
         except Exception as e:
-            print(f"❌ Failed to start {name}: {e}")
+            print(f"[ERROR] Failed to start {name}: {e}")
             return None
     
     def _monitor_service(self, name, process):
@@ -74,12 +74,12 @@ class ServiceManager:
                 process.terminate()
                 try:
                     process.wait(timeout=10)
-                    print(f"✅ {name} stopped")
+                    print(f"[SUCCESS] {name} stopped")
                 except subprocess.TimeoutExpired:
-                    print(f"⚠️  {name} didn't stop gracefully, killing...")
+                    print(f"WARNING: {name} didn't stop gracefully, killing...")
                     process.kill()
                     process.wait()
-                    print(f"✅ {name} killed")
+                    print(f"[SUCCESS] {name} killed")
             del self.processes[name]
     
     def stop_all(self):
@@ -90,7 +90,7 @@ class ServiceManager:
         for name in list(self.processes.keys()):
             self.stop_service(name)
         
-        print("✅ All services stopped")
+        print("[SUCCESS] All services stopped")
     
     def wait_for_services(self):
         """Wait for all services to complete"""
@@ -103,7 +103,7 @@ class ServiceManager:
 
 def check_dependencies():
     """Check if required dependencies are installed"""
-    print("🔍 Checking dependencies...")
+    print("Checking: Checking dependencies...")
     
     required_packages = [
         'fastapi', 'uvicorn', 'pandas', 'numpy', 'torch', 
@@ -119,31 +119,31 @@ def check_dependencies():
             missing_packages.append(package)
     
     if missing_packages:
-        print(f"❌ Missing packages: {', '.join(missing_packages)}")
+        print(f"[ERROR] Missing packages: {', '.join(missing_packages)}")
         print("Install with: pip install -r requirements.txt")
         return False
     
-    print("✅ All dependencies found")
+    print("[SUCCESS] All dependencies found")
     return True
 
 def check_database():
     """Check database connectivity"""
-    print("🔍 Checking database connectivity...")
+    print("Checking: Checking database connectivity...")
     
     try:
         sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from config.database_config import test_database_connection
         
         if test_database_connection():
-            print("✅ Database connection successful")
+            print("[SUCCESS] Database connection successful")
             return True
         else:
-            print("❌ Database connection failed")
+            print("[ERROR] Database connection failed")
             print("Please check your database configuration in .env file")
             return False
             
     except Exception as e:
-        print(f"❌ Database check failed: {e}")
+        print(f"[ERROR] Database check failed: {e}")
         return False
 
 def start_services():
@@ -158,7 +158,7 @@ def start_services():
     
     # Check database
     if not check_database():
-        print("⚠️  Database not available, some features may not work")
+        print("WARNING: Database not available, some features may not work")
     
     # Create service manager
     manager = ServiceManager()
@@ -194,12 +194,12 @@ def start_services():
         manager.start_service(**service)
         time.sleep(2)  # Give each service time to start
     
-    print("\n🎉 All services started!")
-    print("\n📊 Access points:")
+    print("\nSUCCESS: All services started!")
+    print("\nAccess points:")
     print("  • API Documentation: http://localhost:8000/docs")
     print("  • Dashboard: http://localhost:8050")
     print("  • Health Check: http://localhost:8000/health")
-    print("\n🛑 Press Ctrl+C to stop all services")
+    print("\n[STOP] Press Ctrl+C to stop all services")
     
     # Wait for services
     try:
@@ -220,7 +220,7 @@ def start_docker_services():
         print("\n🛑 Stopping Docker services...")
         subprocess.run(['docker-compose', 'down'], cwd=project_root)
     except FileNotFoundError:
-        print("❌ Docker Compose not found. Please install Docker and Docker Compose")
+        print("[ERROR] Docker Compose not found. Please install Docker and Docker Compose")
         sys.exit(1)
 
 def main():
@@ -240,10 +240,10 @@ def main():
     if args.docker:
         start_docker_services()
     elif args.api_only:
-        print("🚀 Starting API server only...")
+        print("Loading: Starting API server only...")
         subprocess.run(['python', 'api/main.py'])
     elif args.dashboard_only:
-        print("🚀 Starting dashboard only...")
+        print("Loading: Starting dashboard only...")
         subprocess.run(['python', 'dashboard/app.py'])
     else:
         start_services()

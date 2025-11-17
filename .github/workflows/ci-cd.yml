@@ -490,11 +490,11 @@ jobs:
     - name: Notify on success
       if: needs.deploy.result == 'success'
       run: |
-        echo "✅ Deployment successful!"
+        echo "[SUCCESS] Deployment successful!"
         # Add notification logic (Slack, email, etc.)
     
     - name: Notify on failure
       if: failure()
       run: |
-        echo "❌ Pipeline failed!"
+        echo "[FAILED] Pipeline failed!"
         # Add failure notification logic

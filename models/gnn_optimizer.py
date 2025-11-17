@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.data import Data, DataLoader
+from typing import Dict
 import networkx as nx
 import gurobipy as gp
 from gurobipy import GRB

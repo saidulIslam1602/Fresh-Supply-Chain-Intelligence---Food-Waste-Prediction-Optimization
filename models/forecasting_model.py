@@ -303,12 +303,6 @@ class TemporalFusionTransformer(nn.Module):
         
         return results
         
-        # Quantile outputs for uncertainty estimation
-        self.quantile_layers = nn.ModuleList([
-            nn.Linear(hidden_size // 2, forecast_horizon)
-            for _ in range(3)  # 10%, 50%, 90% quantiles
-        ])
-        
     def _build_variable_selection_network(self, input_size: int, hidden_size: int):
         """Build variable selection network for feature importance"""
         return nn.Sequential(
