@@ -64,7 +64,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -114,7 +114,7 @@ jobs:
           -m "unit and not slow"
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-${{ matrix.python-version }}
@@ -192,7 +192,7 @@ jobs:
           -m "integration and not slow"
     
     - name: Upload integration test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: integration-test-results
@@ -234,7 +234,7 @@ jobs:
           -m "ml and not slow"
     
     - name: Upload ML test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: ml-test-results
@@ -270,7 +270,7 @@ jobs:
           -m "performance"
     
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: performance-results
@@ -365,7 +365,7 @@ jobs:
       run: docker-compose -f docker-compose.enhanced.yml down
     
     - name: Upload E2E test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: e2e-test-results
@@ -403,7 +403,7 @@ jobs:
     
     steps:
     - name: Download all test results
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
     
     - name: Publish test results
       uses: dorny/test-reporter@v1
