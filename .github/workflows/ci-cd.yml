@@ -104,6 +104,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-ci.txt
     
+    - name: Create directories
+      run: mkdir -p junit htmlcov
+    
     - name: Run unit tests
       run: |
         pytest tests/unit/ -v \
@@ -122,6 +125,7 @@ jobs:
           junit/test-results-${{ matrix.python-version }}.xml
           htmlcov/
           coverage.xml
+        if-no-files-found: ignore
 
   # Integration Tests
   integration-tests:
@@ -176,6 +180,16 @@ jobs:
         pip install -r requirements-ci.txt
         pip install pytest pytest-asyncio pytest-mock
     
+    - name: Install ODBC Driver
+      run: |
+        curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft-prod.gpg > /dev/null
+        curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
+        sudo apt-get update
+        ACCEPT_EULA=Y sudo apt-get install -y msodbcsql17 unixodbc-dev
+    
+    - name: Create directories
+      run: mkdir -p junit
+    
     - name: Wait for services
       run: |
         sleep 30  # Wait for services to be ready
@@ -197,6 +211,7 @@ jobs:
       with:
         name: integration-test-results
         path: junit/integration-test-results.xml
+        if-no-files-found: ignore
 
   # ML Model Tests
   ml-model-tests:
@@ -226,6 +241,9 @@ jobs:
         pip install -r requirements-ci.txt
         pip install pytest pytest-mock
     
+    - name: Create directories
+      run: mkdir -p junit
+    
     - name: Run ML model tests
       run: |
         pytest tests/unit/test_ml_models.py -v \
@@ -239,6 +257,7 @@ jobs:
       with:
         name: ml-test-results
         path: junit/ml-test-results.xml
+        if-no-files-found: ignore
 
   # Performance Tests
   performance-tests:
@@ -261,6 +280,9 @@ jobs:
         pip install -r requirements-ci.txt
         pip install pytest pytest-benchmark psutil
     
+    - name: Create directories
+      run: mkdir -p junit
+    
     - name: Run performance tests
       run: |
         pytest tests/performance/ -v \
@@ -277,6 +299,7 @@ jobs:
         path: |
           junit/performance-test-results.xml
           benchmark-results.json
+        if-no-files-found: ignore
 
   # Build and Test Docker Images
   docker-build:
@@ -294,7 +317,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.enhanced
+        file: ./deployment/docker/Dockerfile.api
         push: false
         tags: fresh-supply-api:test
         cache-from: type=gha
@@ -304,7 +327,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./dashboard/Dockerfile.enhanced
+        file: ./deployment/docker/Dockerfile.dashboard
         push: false
         tags: fresh-supply-dashboard:test
         cache-from: type=gha
@@ -345,9 +368,12 @@ jobs:
         pip install -r requirements-ci.txt
         pip install pytest pytest-mock requests
     
+    - name: Create directories
+      run: mkdir -p junit
+    
     - name: Start services with Docker Compose
       run: |
-        docker-compose -f docker-compose.enhanced.yml up -d
+        docker-compose -f deployment/docker-compose.production.yml up -d
         sleep 60  # Wait for services to be ready
     
     - name: Run E2E tests
@@ -362,7 +388,7 @@ jobs:
     
     - name: Stop services
       if: always()
-      run: docker-compose -f docker-compose.enhanced.yml down
+      run: docker-compose -f deployment/docker-compose.production.yml down
     
     - name: Upload E2E test results
       uses: actions/upload-artifact@v4
@@ -370,6 +396,7 @@ jobs:
       with:
         name: e2e-test-results
         path: junit/e2e-test-results.xml
+        if-no-files-found: ignore
 
   # Security Scanning
   security-scan:
@@ -399,7 +426,7 @@ jobs:
   test-summary:
     runs-on: ubuntu-latest
     name: Test Summary
-    needs: [unit-tests, integration-tests, ml-model-tests, e2e-tests]
+    needs: [unit-tests, integration-tests, ml-model-tests]
     if: always()
     
     steps:
@@ -424,7 +451,6 @@ jobs:
         echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Integration Tests | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| ML Model Tests | ${{ needs.ml-model-tests.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| E2E Tests | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
 
   # Deployment (only on main branch)
   deploy:
@@ -454,7 +480,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile.enhanced
+        file: ./deployment/docker/Dockerfile.api
         push: true
         tags: |
           ghcr.io/${{ github.repository }}/api:latest
