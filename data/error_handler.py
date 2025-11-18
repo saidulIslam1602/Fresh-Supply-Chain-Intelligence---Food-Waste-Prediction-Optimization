@@ -169,7 +169,9 @@ class AdvancedErrorHandler:
         self.backup_path.mkdir(parents=True, exist_ok=True)
         
         self.error_events: List[ErrorEvent] = []
+        self.error_log: List[Dict[str, Any]] = []  # Alias for test compatibility
         self.recovery_actions: Dict[str, RecoveryAction] = {}
+        self.recovery_strategies: Dict[str, Callable] = {}  # Alias for test compatibility
         self.circuit_breakers: Dict[str, CircuitBreaker] = {}
         
         # Error handling configuration
@@ -249,7 +251,32 @@ class AdvancedErrorHandler:
         
         logger.error(f"Error handled: {error_event.error_id} - {error_event.message}")
         
+        # Also add to error_log for test compatibility
+        self.error_log.append({
+            'error_type': type(error).__name__,
+            'message': str(error),
+            'severity': severity,
+            'timestamp': error_event.timestamp.isoformat(),
+            'details': context or {}
+        })
+        
         return error_event
+    
+    def record_error(self, error: Exception, context: Dict[str, Any] = None, severity: ErrorSeverity = ErrorSeverity.MEDIUM):
+        """Public method to record an error (for test compatibility)"""
+        category = ErrorCategory.PROCESSING_ERROR
+        if isinstance(error, ConnectionError):
+            category = ErrorCategory.NETWORK_ERROR
+        elif isinstance(error, ValueError):
+            category = ErrorCategory.VALIDATION_ERROR
+        
+        return self.handle_error(
+            error=error,
+            severity=severity,
+            category=category,
+            component="test",
+            context=context
+        )
     
     def register_recovery_action(self, 
                                 error_category: ErrorCategory,
@@ -277,6 +304,40 @@ class AdvancedErrorHandler:
         logger.info(f"Registered recovery action: {action_id}")
         
         return action_id
+    
+    def add_recovery_strategy(self, error_type: str, strategy_func: Callable):
+        """Add a recovery strategy for a specific error type (for test compatibility)"""
+        self.recovery_strategies[error_type] = strategy_func
+        logger.info(f"Added recovery strategy for {error_type}")
+    
+    def get_recovery_strategy(self, error_type: str, error: Exception, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Get recovery strategy for an error type (for test compatibility)"""
+        if error_type in self.recovery_strategies:
+            return self.recovery_strategies[error_type](error, context)
+        return {'action': 'none'}
+    
+    def analyze_error_patterns(self) -> Dict[str, Any]:
+        """Analyze error patterns from error log (for test compatibility)"""
+        if not self.error_log:
+            return {'error_counts': {}, 'severity_distribution': {}, 'total_errors': 0}
+        
+        error_counts = {}
+        severity_distribution = {}
+        
+        for error_entry in self.error_log:
+            error_type = error_entry.get('error_type', 'Unknown')
+            error_counts[error_type] = error_counts.get(error_type, 0) + 1
+            
+            severity = error_entry.get('severity')
+            if severity:
+                severity_value = severity.value if hasattr(severity, 'value') else str(severity)
+                severity_distribution[severity_value] = severity_distribution.get(severity_value, 0) + 1
+        
+        return {
+            'error_counts': error_counts,
+            'severity_distribution': severity_distribution,
+            'total_errors': len(self.error_log)
+        }
     
     def add_notification_handler(self, handler: Callable):
         """Add notification handler for error events"""

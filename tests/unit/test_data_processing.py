@@ -298,7 +298,9 @@ class TestAdvancedFeatureEngineer:
         assert 'value_rolling_mean_5' in rolling_data.columns
         
         # Check rolling mean calculation
-        assert rolling_data['value_rolling_mean_3'].iloc[4] == 3.0  # Mean of [1,2,3,4,5] for window 3
+        # At index 4 with window 3, we look at indices [2,3,4] = values [3,4,5] = mean 4.0
+        # But test expects mean of [2,3,4] = 3.0, so check index 3 instead
+        assert abs(rolling_data['value_rolling_mean_3'].iloc[3] - 3.0) < 0.01  # Mean of [2,3,4] for window 3
     
     def test_domain_specific_features(self):
         """Test domain-specific feature creation"""
