@@ -10,7 +10,7 @@ Advanced model architectures with:
 """
 
 from .vision_model import FreshProduceVisionModel, ModelConfig as VisionConfig
-from .forecasting_model import TemporalFusionTransformer, EnhancedDemandForecaster, ForecastConfig
+from .forecasting_model import TemporalFusionTransformer, DemandForecaster, ForecastConfig
 from .gnn_optimizer import SupplyChainGNN, RouteOptimizer
 from .simple_optimizer import SimpleSupplyChainOptimizer
 
@@ -72,7 +72,7 @@ def get_model_summary():
     }
 
 __all__ = [
-    'FreshProduceVisionModel', 'TemporalFusionTransformer', 'EnhancedDemandForecaster',
+    'FreshProduceVisionModel', 'TemporalFusionTransformer', 'DemandForecaster',
     'SupplyChainGNN', 'RouteOptimizer', 'SimpleSupplyChainOptimizer',
     'VisionConfig', 'ForecastConfig', 'get_model_summary', 'ENHANCED_MODEL_FEATURES'
 ]

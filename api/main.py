@@ -412,7 +412,7 @@ async def load_models(app: FastAPI):
     try:
         # Import enhanced models
         from models.vision_model import FreshProduceVisionModel, ModelConfig as VisionConfig
-        from models.forecasting_model import EnhancedDemandForecaster, ForecastConfig
+        from models.forecasting_model import DemandForecaster, ForecastConfig
         
         # Initialize vision model
         vision_config = VisionConfig(
@@ -429,7 +429,7 @@ async def load_models(app: FastAPI):
             use_uncertainty=True,
             forecast_horizon=7
         )
-        app.state.forecast_model = EnhancedDemandForecaster(config.DATABASE_URL, forecast_config)
+        app.state.forecast_model = DemandForecaster(config.DATABASE_URL, forecast_config)
         
         logger.info("ML models loaded successfully")
         
