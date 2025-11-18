@@ -20,7 +20,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from models.vision_model import (
     FreshProduceVisionModel, EnhancedVisionModel, 
-    AttentionModule, UncertaintyHead, VisionConfig
+    AttentionModule, UncertaintyHead, ModelConfig
 )
 from models.forecasting_model import (
     TemporalFusionTransformer, VariableSelectionNetwork,
@@ -35,7 +35,7 @@ class TestVisionModel:
     
     def test_vision_config_initialization(self):
         """Test vision model configuration"""
-        config = VisionConfig(
+        config = ModelConfig(
             num_classes=5,
             backbone='efficientnet-b4',
             input_size=224,
@@ -73,7 +73,7 @@ class TestVisionModel:
     
     def test_enhanced_vision_model_initialization(self):
         """Test enhanced vision model initialization"""
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')  # Use smaller model for testing
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')  # Use smaller model for testing
         model = EnhancedVisionModel(config)
         
         assert model.config.num_classes == 5
@@ -84,7 +84,7 @@ class TestVisionModel:
     
     def test_vision_model_forward_pass(self, test_utils):
         """Test vision model forward pass"""
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         model = EnhancedVisionModel(config)
         model.eval()
         
@@ -136,7 +136,7 @@ class TestVisionModel:
     
     def test_vision_model_uncertainty_quantification(self, test_utils):
         """Test uncertainty quantification in vision model"""
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0', enable_uncertainty=True)
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0', enable_uncertainty=True)
         model = EnhancedVisionModel(config)
         model.eval()
         
@@ -158,7 +158,7 @@ class TestVisionModel:
     
     def test_vision_model_save_load(self, temp_directory):
         """Test model saving and loading"""
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         model = EnhancedVisionModel(config)
         
         # Save model
@@ -170,7 +170,7 @@ class TestVisionModel:
         
         # Load model
         checkpoint = torch.load(model_path, map_location='cpu')
-        loaded_model = EnhancedVisionModel(VisionConfig(**checkpoint['config']))
+        loaded_model = EnhancedVisionModel(ModelConfig(**checkpoint['config']))
         loaded_model.load_state_dict(checkpoint['model_state_dict'])
         
         # Test that loaded model works
@@ -557,7 +557,7 @@ class TestModelIntegration:
     
     def test_model_performance_monitoring(self, test_utils):
         """Test model performance monitoring"""
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         model = EnhancedVisionModel(config)
         
         # Simulate batch predictions
@@ -591,7 +591,7 @@ class TestModelIntegration:
     
     def test_model_memory_usage(self, test_utils):
         """Test model memory usage"""
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         model = EnhancedVisionModel(config)
         
         # Count parameters
@@ -611,7 +611,7 @@ class TestModelIntegration:
     def test_model_serialization(self, temp_directory):
         """Test model serialization and deserialization"""
         # Test vision model
-        vision_config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        vision_config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         vision_model = EnhancedVisionModel(vision_config)
         
         vision_path = os.path.join(temp_directory, 'vision_model.pth')

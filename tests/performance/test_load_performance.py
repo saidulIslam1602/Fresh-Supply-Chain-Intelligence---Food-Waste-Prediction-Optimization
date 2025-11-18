@@ -23,7 +23,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from models.vision_model import FreshProduceVisionModel, EnhancedVisionModel, VisionConfig
+from models.vision_model import FreshProduceVisionModel, EnhancedVisionModel, ModelConfig
 from models.forecasting_model import TemporalFusionTransformer, ForecastConfig
 from data.advanced_preprocessor import AdvancedPreprocessor
 from data.feature_engineer import AdvancedFeatureEngineer
@@ -173,7 +173,7 @@ class TestMLModelPerformance:
         """Test vision model inference performance"""
         
         # Test with smaller model for performance testing
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         model = EnhancedVisionModel(config)
         model.eval()
         
@@ -279,7 +279,7 @@ class TestMLModelPerformance:
         import torch
         
         # Test vision model memory usage
-        config = VisionConfig(num_classes=5, backbone='efficientnet-b0')
+        config = ModelConfig(num_classes=5, backbone='efficientnet-b0')
         model = EnhancedVisionModel(config)
         
         # Measure model parameter memory
