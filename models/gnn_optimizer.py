@@ -10,8 +10,17 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.data import Data, DataLoader
 from typing import Dict
 import networkx as nx
-import gurobipy as gp
-from gurobipy import GRB
+
+# Optional Gurobi import (commercial license required)
+try:
+    import gurobipy as gp
+    from gurobipy import GRB
+    GUROBI_AVAILABLE = True
+except ImportError:
+    GUROBI_AVAILABLE = False
+    gp = None
+    GRB = None
+
 import pandas as pd
 from sqlalchemy import create_engine
 import logging
@@ -125,6 +134,10 @@ class SupplyChainOptimizer:
         Optimize distribution using Gurobi
         Minimizes cost while respecting shelf life constraints
         """
+        if not GUROBI_AVAILABLE:
+            logger.warning("Gurobi is not available. Using NetworkX for basic optimization.")
+            # Fallback to simple shortest path optimization
+            return self._optimize_with_networkx(demand, inventory, shelf_life)
         
         model = gp.Model("FreshProduceDistribution")
         
@@ -232,3 +245,73 @@ class SupplyChainOptimizer:
         else:
             logger.error("Optimization failed")
             return None
+    
+    def _optimize_with_networkx(self, demand: Dict, inventory: Dict, shelf_life: Dict):
+        """
+        Fallback optimization using NetworkX when Gurobi is not available
+        Uses shortest path algorithms for basic routing
+        """
+        logger.info("Using NetworkX fallback optimization")
+        
+        # Simple heuristic: route from sources to destinations using shortest paths
+        solution = {
+            'objective': 0.0,
+            'flows': {},
+            'waste': {}
+        }
+        
+        # For each demand, find shortest path from available inventory
+        for (dest_node, product), quantity in demand.items():
+            # Find nodes with inventory for this product
+            sources = [(node, inv) for (node, prod), inv in inventory.items() 
+                      if prod == product and inv > 0]
+            
+            if not sources:
+                # No inventory available, mark as waste
+                solution['waste'][(dest_node, product)] = quantity
+                continue
+            
+            # Find shortest path from each source
+            best_path = None
+            best_cost = float('inf')
+            best_source = None
+            
+            for source_node, available in sources:
+                try:
+                    if source_node == dest_node:
+                        # Same location, no transport needed
+                        path_cost = 0
+                        best_path = [source_node]
+                        best_cost = 0
+                        best_source = source_node
+                        break
+                    
+                    path = nx.shortest_path(self.graph, source_node, dest_node, weight='cost')
+                    path_cost = sum(self.graph[path[i]][path[i+1]]['cost'] 
+                                  for i in range(len(path)-1))
+                    
+                    if path_cost < best_cost:
+                        best_cost = path_cost
+                        best_path = path
+                        best_source = source_node
+                except nx.NetworkXNoPath:
+                    continue
+            
+            if best_path:
+                # Allocate flow along the path
+                flow_amount = min(quantity, inventory.get((best_source, product), 0))
+                for i in range(len(best_path)-1):
+                    edge = (best_path[i], best_path[i+1])
+                    solution['flows'][(edge, product)] = flow_amount
+                
+                solution['objective'] += best_cost * flow_amount
+                
+                # Update inventory
+                inventory[(best_source, product)] -= flow_amount
+                if flow_amount < quantity:
+                    solution['waste'][(dest_node, product)] = quantity - flow_amount
+            else:
+                # No path found
+                solution['waste'][(dest_node, product)] = quantity
+        
+        return solution
