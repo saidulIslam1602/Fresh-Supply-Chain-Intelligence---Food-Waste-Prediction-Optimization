@@ -25,8 +25,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from models.vision_model import FreshProduceVisionModel, EnhancedVisionModel, VisionConfig
 from models.forecasting_model import TemporalFusionTransformer, ForecastConfig
-from data.advanced_preprocessor import AdvancedDataPreprocessor
-from data.feature_engineer import FeatureEngineer
+from data.advanced_preprocessor import AdvancedPreprocessor
+from data.feature_engineer import AdvancedFeatureEngineer
 
 @pytest.mark.performance
 @pytest.mark.slow
@@ -323,7 +323,7 @@ class TestDataProcessingPerformance:
     def test_data_preprocessing_performance(self, performance_test_data):
         """Test data preprocessing performance with large datasets"""
         
-        preprocessor = AdvancedDataPreprocessor()
+        preprocessor = AdvancedPreprocessor()
         large_dataset = performance_test_data["large_dataset"]
         
         # Test different dataset sizes
@@ -368,7 +368,7 @@ class TestDataProcessingPerformance:
     def test_feature_engineering_performance(self, sample_time_series_data):
         """Test feature engineering performance"""
         
-        engineer = FeatureEngineer()
+        engineer = AdvancedFeatureEngineer()
         
         # Test with different data sizes
         data_sizes = [1000, 5000, 10000]
@@ -405,7 +405,7 @@ class TestDataProcessingPerformance:
     def test_concurrent_data_processing(self, performance_test_data):
         """Test concurrent data processing performance"""
         
-        preprocessor = AdvancedDataPreprocessor()
+        preprocessor = AdvancedPreprocessor()
         large_dataset = performance_test_data["large_dataset"]
         
         def process_chunk(chunk_data):

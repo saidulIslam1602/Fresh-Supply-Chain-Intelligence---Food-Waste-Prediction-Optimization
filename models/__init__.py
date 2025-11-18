@@ -11,7 +11,7 @@ Advanced model architectures with:
 
 from .vision_model import FreshProduceVisionModel, ModelConfig as VisionConfig
 from .forecasting_model import TemporalFusionTransformer, DemandForecaster, ForecastConfig
-from .gnn_optimizer import SupplyChainGNN, RouteOptimizer
+from .gnn_optimizer import SupplyChainGNN, SupplyChainOptimizer
 from .simple_optimizer import SimpleSupplyChainOptimizer
 
 __version__ = "2.0.0"
@@ -73,6 +73,6 @@ def get_model_summary():
 
 __all__ = [
     'FreshProduceVisionModel', 'TemporalFusionTransformer', 'DemandForecaster',
-    'SupplyChainGNN', 'RouteOptimizer', 'SimpleSupplyChainOptimizer',
+    'SupplyChainGNN', 'SupplyChainOptimizer', 'SimpleSupplyChainOptimizer',
     'VisionConfig', 'ForecastConfig', 'get_model_summary', 'ENHANCED_MODEL_FEATURES'
 ]

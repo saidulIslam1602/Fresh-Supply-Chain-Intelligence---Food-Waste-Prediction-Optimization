@@ -235,7 +235,7 @@ class TestAPIEndpoints:
         mock_get_user.return_value = mock_user
         
         # Mock the GNN optimizer
-        with patch('models.gnn_optimizer.RouteOptimizer') as mock_optimizer_class:
+        with patch('models.gnn_optimizer.SupplyChainOptimizer') as mock_optimizer_class:
             mock_optimizer = Mock()
             mock_optimizer.optimize_distribution.return_value = {
                 'optimal_routes': [

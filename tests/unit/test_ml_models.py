@@ -26,7 +26,7 @@ from models.forecasting_model import (
     TemporalFusionTransformer, VariableSelectionNetwork,
     GatedResidualNetwork, ForecastConfig
 )
-from models.gnn_optimizer import SupplyChainGNN, RouteOptimizer
+from models.gnn_optimizer import SupplyChainGNN, SupplyChainOptimizer
 
 @pytest.mark.unit
 @pytest.mark.ml
@@ -412,9 +412,9 @@ class TestGNNOptimizer:
         assert torch.all(edge_predictions <= 1)
     
     def test_route_optimizer_initialization(self, mock_database_operations):
-        """Test RouteOptimizer initialization"""
+        """Test SupplyChainOptimizer initialization"""
         with patch('sqlalchemy.create_engine'):
-            optimizer = RouteOptimizer("sqlite:///:memory:")
+            optimizer = SupplyChainOptimizer("sqlite:///:memory:")
             
             assert optimizer.engine is not None
             assert optimizer.gnn_model is not None
@@ -434,7 +434,7 @@ class TestGNNOptimizer:
                     sample_supply_chain_network['edges']
                 ]
                 
-                optimizer = RouteOptimizer("sqlite:///:memory:")
+                optimizer = SupplyChainOptimizer("sqlite:///:memory:")
                 graph = optimizer.build_supply_network()
                 
                 assert graph is not None
@@ -453,7 +453,7 @@ class TestGNNOptimizer:
                     sample_supply_chain_network['edges']
                 ]
                 
-                optimizer = RouteOptimizer("sqlite:///:memory:")
+                optimizer = SupplyChainOptimizer("sqlite:///:memory:")
                 
                 # Mock the optimization result
                 with patch.object(optimizer, 'optimize_routes') as mock_optimize:
