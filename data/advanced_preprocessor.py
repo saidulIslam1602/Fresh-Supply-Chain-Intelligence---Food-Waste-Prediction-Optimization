@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 class PreprocessingConfig:
     """Configuration for preprocessing pipeline"""
     # Imputation strategies
-    numeric_imputation: str = 'median'  # 'mean', 'median', 'knn', 'forward_fill'
+    numeric_imputation: str = 'knn'  # 'mean', 'median', 'knn', 'forward_fill'
     categorical_imputation: str = 'mode'  # 'mode', 'constant', 'drop'
     
     # Scaling methods
-    scaling_method: str = 'robust'  # 'standard', 'minmax', 'robust', 'none'
+    scaling_method: str = 'standard'  # 'standard', 'minmax', 'robust', 'none'
     
     # Outlier handling
     outlier_method: str = 'iqr'  # 'iqr', 'zscore', 'isolation_forest', 'none'
@@ -46,8 +46,25 @@ class PreprocessingConfig:
 class AdvancedPreprocessor:
     """Advanced data preprocessing pipeline with multiple strategies"""
     
-    def __init__(self, config: PreprocessingConfig = None):
+    def __init__(self, config: PreprocessingConfig = None, 
+                 imputation_strategy: str = None,
+                 outlier_method: str = None,
+                 scaling_method: str = None):
         self.config = config or PreprocessingConfig()
+        
+        # Set direct attributes for backward compatibility with tests
+        if imputation_strategy is not None:
+            self.config.numeric_imputation = imputation_strategy
+        if outlier_method is not None:
+            self.config.outlier_method = outlier_method
+        if scaling_method is not None:
+            self.config.scaling_method = scaling_method
+        
+        # Direct attributes for easy access (mapped to config)
+        self.imputation_strategy = self.config.numeric_imputation
+        self.outlier_method = self.config.outlier_method
+        self.scaling_method = self.config.scaling_method
+        
         self.fitted_transformers = {}
         self.feature_names = []
         self.preprocessing_log = []
@@ -117,6 +134,10 @@ class AdvancedPreprocessor:
         
         return processed_df
     
+    def optimize_data_types(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Public method to optimize data types"""
+        return self._optimize_data_types(df)
+    
     def _optimize_data_types(self, df: pd.DataFrame) -> pd.DataFrame:
         """Optimize data types for memory efficiency"""
         logger.info("Optimizing data types...")
@@ -145,6 +166,10 @@ class AdvancedPreprocessor:
         
         self._log_step("Data type optimization", f"Optimized {len(df.columns)} columns")
         return df
+    
+    def handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Public method to handle missing values"""
+        return self._handle_missing_values(df, fit=True)
     
     def _handle_missing_values(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """Advanced missing value imputation"""
@@ -222,6 +247,80 @@ class AdvancedPreprocessor:
         
         self._log_step("Text preprocessing", f"Processed {len(text_columns)} text columns")
         return df
+    
+    def normalize_text_data(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+        """Public method to normalize text data in specified columns"""
+        result_df = df.copy()
+        for col in columns:
+            if col in result_df.columns:
+                # Only process non-null values, preserve NaN/None
+                mask = result_df[col].notna()
+                if mask.any():
+                    # Convert non-null values to string, then normalize
+                    result_df.loc[mask, col] = result_df.loc[mask, col].astype(str)
+                    result_df.loc[mask, col] = result_df.loc[mask, col].str.strip()
+                    result_df.loc[mask, col] = result_df.loc[mask, col].str.lower()
+        return result_df
+    
+    def normalize_data(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+        """Public method to normalize (scale) numerical data in specified columns"""
+        result_df = df.copy()
+        
+        numeric_columns = [col for col in columns if col in result_df.columns and 
+                          result_df[col].dtype in [np.number]]
+        
+        if len(numeric_columns) == 0:
+            return result_df
+        
+        if self.config.scaling_method == 'standard':
+            scaler = StandardScaler()
+        elif self.config.scaling_method == 'minmax':
+            scaler = MinMaxScaler()
+        elif self.config.scaling_method == 'robust':
+            scaler = RobustScaler()
+        else:
+            scaler = StandardScaler()
+        
+        result_df[numeric_columns] = scaler.fit_transform(result_df[numeric_columns])
+        return result_df
+    
+    def detect_outliers(self, df: pd.DataFrame, columns: List[str]) -> List[int]:
+        """Detect outliers in specified columns and return their indices"""
+        outlier_indices = []
+        
+        for col in columns:
+            if col not in df.columns:
+                continue
+                
+            if self.config.outlier_method == 'iqr':
+                Q1 = df[col].quantile(0.25)
+                Q3 = df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                
+                if IQR > 0:  # Avoid division issues
+                    lower_bound = Q1 - self.config.outlier_threshold * IQR
+                    upper_bound = Q3 + self.config.outlier_threshold * IQR
+                    
+                    outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)].index.tolist()
+                    # Convert to integer indices (0-based)
+                    outlier_indices.extend([int(idx) for idx in outliers])
+            
+            elif self.config.outlier_method == 'zscore':
+                mean_val = df[col].mean()
+                std_val = df[col].std()
+                
+                if std_val > 0:
+                    z_scores = np.abs((df[col] - mean_val) / std_val)
+                    outliers = df[z_scores > 3].index.tolist()
+                    # Convert to integer indices (0-based)
+                    outlier_indices.extend([int(idx) for idx in outliers])
+        
+        # Remove duplicates and return sorted list
+        return sorted(list(set(outlier_indices)))
+    
+    def handle_outliers(self, df: pd.DataFrame, outlier_indices: List[int]) -> pd.DataFrame:
+        """Handle outliers by removing rows at specified indices"""
+        return df.drop(index=outlier_indices).reset_index(drop=True)
     
     def _handle_outliers(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """Advanced outlier detection and handling"""

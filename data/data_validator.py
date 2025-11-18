@@ -41,6 +41,15 @@ class ValidationRule:
     validation_function: Any
     severity: str = "error"
 
+@dataclass
+class ValidationDataFrameResult:
+    """Result of validate_dataframe method"""
+    is_valid: bool
+    errors: List[str]
+    warnings: List[str]
+    passed_checks: int
+    failed_checks: int
+
 class DataValidator:
     """Comprehensive data validation framework"""
     
@@ -48,6 +57,7 @@ class DataValidator:
         self.connection_string = connection_string
         self.engine = create_engine(connection_string) if connection_string else None
         self.validation_results: List[ValidationResult] = []
+        self.validation_history: List[ValidationResult] = []  # Alias for validation_results
         self.rules: List[ValidationRule] = []
         
         # Define validation rules
@@ -80,6 +90,72 @@ class DataValidator:
         self.rules.append(rule)
         logger.info(f"Added validation rule: {rule.name}")
     
+    def validate_dataframe(self, df: pd.DataFrame) -> ValidationDataFrameResult:
+        """Validate dataframe using custom rules"""
+        errors = []
+        warnings = []
+        passed_checks = 0
+        failed_checks = 0
+        
+        for rule in self.rules:
+            try:
+                # Execute validation function
+                passed = rule.validation_function(df)
+                
+                # Convert severity string to ValidationSeverity
+                if rule.severity.lower() == 'error':
+                    severity = ValidationSeverity.ERROR
+                elif rule.severity.lower() == 'warning':
+                    severity = ValidationSeverity.WARNING
+                elif rule.severity.lower() == 'critical':
+                    severity = ValidationSeverity.CRITICAL
+                else:
+                    severity = ValidationSeverity.INFO
+                
+                if passed:
+                    passed_checks += 1
+                else:
+                    failed_checks += 1
+                    message = f"{rule.name}: {rule.description}"
+                    if severity in [ValidationSeverity.ERROR, ValidationSeverity.CRITICAL]:
+                        errors.append(message)
+                    else:
+                        warnings.append(message)
+                    
+                    # Create ValidationResult for history
+                    result = ValidationResult(
+                        check_name=rule.name,
+                        severity=severity,
+                        passed=passed,
+                        message=rule.description
+                    )
+                    self.validation_results.append(result)
+                    self.validation_history.append(result)
+            except Exception as e:
+                failed_checks += 1
+                error_msg = f"{rule.name}: Validation failed with error - {str(e)}"
+                errors.append(error_msg)
+                
+                result = ValidationResult(
+                    check_name=rule.name,
+                    severity=ValidationSeverity.ERROR,
+                    passed=False,
+                    message=f"Validation error: {str(e)}"
+                )
+                self.validation_results.append(result)
+                self.validation_history.append(result)
+        
+        # is_valid is False if there are any errors or warnings (failed checks)
+        is_valid = len(errors) == 0 and len(warnings) == 0
+        
+        return ValidationDataFrameResult(
+            is_valid=is_valid,
+            errors=errors,
+            warnings=warnings,
+            passed_checks=passed_checks,
+            failed_checks=failed_checks
+        )
+    
     def validate_usda_products(self, df: pd.DataFrame) -> List[ValidationResult]:
         """Comprehensive validation for USDA product data"""
         logger.info(f"Validating USDA products dataset with {len(df)} records")
@@ -101,6 +177,7 @@ class DataValidator:
         results.extend(self._detect_outliers(df, ['ShelfLifeDays', 'UnitCost', 'UnitPrice'], "USDA Products"))
         
         self.validation_results.extend(results)
+        self.validation_history.extend(results)
         return results
     
     def validate_iot_data(self, df: pd.DataFrame) -> List[ValidationResult]:
@@ -124,6 +201,7 @@ class DataValidator:
         results.extend(self._detect_sensor_anomalies(df))
         
         self.validation_results.extend(results)
+        self.validation_history.extend(results)
         return results
     
     def validate_warehouse_data(self, df: pd.DataFrame) -> List[ValidationResult]:
@@ -161,6 +239,7 @@ class DataValidator:
                 ))
         
         self.validation_results.extend(results)
+        self.validation_history.extend(results)
         return results
     
     def _validate_schema(self, df: pd.DataFrame, schema: Dict, dataset_name: str) -> List[ValidationResult]:
