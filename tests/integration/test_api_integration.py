@@ -19,8 +19,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from api.main import app
-from api.security import create_access_token, get_password_hash
+from api.main import app, create_access_token, get_password_hash
 
 @pytest.mark.integration
 @pytest.mark.api
