@@ -17,7 +17,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-class DataOperation(Enum):
+class DataOperationType(Enum):
     """Types of data operations"""
     INGESTION = "ingestion"
     TRANSFORMATION = "transformation"
@@ -28,7 +28,7 @@ class DataOperation(Enum):
     EXPORT = "export"
     DELETE = "delete"
 
-class DataSource(Enum):
+class DataSourceType(Enum):
     """Data source types"""
     USDA_API = "usda_api"
     IOT_SENSORS = "iot_sensors"
@@ -38,13 +38,32 @@ class DataSource(Enum):
     FILE_SYSTEM = "file_system"
     STREAM = "stream"
 
+# Dataclass versions for test compatibility
+@dataclass
+class DataSource:
+    """Data source representation (for test compatibility)"""
+    source_id: str
+    source_type: str
+    location: str
+    description: str = ""
+
+@dataclass
+class DataOperation:
+    """Data operation representation (for test compatibility)"""
+    operation_id: str
+    operation_type: str
+    input_sources: List[str]
+    output_destination: str
+    transformation_details: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+
 @dataclass
 class DataAsset:
     """Represents a data asset in the system"""
     asset_id: str
     name: str
     asset_type: str  # 'dataset', 'model', 'feature', 'report'
-    source: DataSource
+    source: DataSourceType  # Use enum for internal use
     location: str
     schema: Dict[str, Any]
     metadata: Dict[str, Any]
@@ -62,7 +81,7 @@ class DataLineageNode:
     """Represents a node in the data lineage graph"""
     node_id: str
     asset: DataAsset
-    operation: DataOperation
+    operation: DataOperationType  # Use enum for internal use
     timestamp: datetime
     user: str
     parameters: Dict[str, Any] = field(default_factory=dict)
@@ -92,7 +111,7 @@ class AuditEvent:
     event_id: str
     timestamp: datetime
     user: str
-    operation: DataOperation
+    operation: DataOperationType  # Use enum for internal use
     asset_id: str
     details: Dict[str, Any]
     ip_address: Optional[str] = None
@@ -117,6 +136,10 @@ class DataLineageTracker:
         self.assets: Dict[str, DataAsset] = {}
         self.audit_events: List[AuditEvent] = []
         
+        # Test compatibility attributes
+        self.operations: List[DataOperation] = []
+        self.data_sources: Dict[str, DataSource] = {}
+        
         # Load existing lineage data
         self._load_lineage_data()
         
@@ -128,7 +151,7 @@ class DataLineageTracker:
     def register_data_asset(self, 
                            name: str,
                            asset_type: str,
-                           source: DataSource,
+                           source: DataSourceType,
                            location: str,
                            schema: Dict[str, Any],
                            metadata: Dict[str, Any] = None,
@@ -152,13 +175,13 @@ class DataLineageTracker:
         
         # Create audit event
         self._create_audit_event(
-            operation=DataOperation.INGESTION,
+            operation=DataOperationType.INGESTION,
             asset_id=asset.asset_id,
             details={
                 'action': 'asset_registered',
                 'asset_name': name,
                 'asset_type': asset_type,
-                'source': source.value
+                'source': source.value if hasattr(source, 'value') else str(source)
             }
         )
         
@@ -168,7 +191,7 @@ class DataLineageTracker:
     def track_transformation(self,
                            source_asset_ids: List[str],
                            target_asset: DataAsset,
-                           operation: DataOperation,
+                           operation: DataOperationType,
                            transformation_logic: str,
                            parameters: Dict[str, Any] = None,
                            metrics: Dict[str, Any] = None,
@@ -240,7 +263,7 @@ class DataLineageTracker:
         
         # Create audit event
         audit_event = self._create_audit_event(
-            operation=DataOperation.EXPORT if access_type == "export" else DataOperation.INGESTION,
+            operation=DataOperationType.EXPORT if access_type == "export" else DataOperationType.INGESTION,
             asset_id=asset_id,
             user=user,
             ip_address=ip_address,
@@ -356,7 +379,7 @@ class DataLineageTracker:
                 quality_report['quality_metrics'].append(quality_metrics)
             
             # Check for validation operations
-            if node_data['operation'] == DataOperation.VALIDATION.value:
+            if node_data['operation'] == DataOperationType.VALIDATION.value:
                 validation_entry = {
                     'timestamp': node_data['timestamp'],
                     'parameters': node_data.get('parameters', {}),
@@ -470,7 +493,7 @@ class DataLineageTracker:
         
         # Create anonymization record
         anonymization_event = self._create_audit_event(
-            operation=DataOperation.TRANSFORMATION,
+            operation=DataOperationType.TRANSFORMATION,
             asset_id=asset_id,
             details={
                 'action': 'data_anonymization',
@@ -515,7 +538,7 @@ class DataLineageTracker:
                 
                 # Create deletion audit event
                 self._create_audit_event(
-                    operation=DataOperation.DELETE,
+                    operation=DataOperationType.DELETE,
                     asset_id=asset.asset_id,
                     details={
                         'action': 'data_retention_deletion',
@@ -563,7 +586,7 @@ class DataLineageTracker:
             raise ValueError(f"Unsupported export format: {format}")
     
     def _create_audit_event(self,
-                           operation: DataOperation,
+                           operation: DataOperationType,
                            asset_id: str,
                            user: str = "system",
                            ip_address: str = None,
@@ -805,6 +828,58 @@ class DataLineageTracker:
         graphml.append('</graphml>')
         
         return '\n'.join(graphml)
+    
+    def register_data_source(self, source: DataSource):
+        """Register a data source (for test compatibility)"""
+        self.data_sources[source.source_id] = source
+        logger.info(f"Registered data source: {source.source_id}")
+    
+    def log_operation(self, operation: DataOperation):
+        """Log a data operation (for test compatibility)"""
+        self.operations.append(operation)
+        logger.info(f"Logged operation: {operation.operation_id}")
+    
+    def get_data_lineage(self, destination: str) -> List[DataOperation]:
+        """Get data lineage for a destination (for test compatibility)"""
+        # Find all operations that produce this destination
+        lineage = []
+        visited = set()
+        
+        def find_upstream(dest: str):
+            if dest in visited:
+                return
+            visited.add(dest)
+            
+            # Find operations that produce this destination
+            for op in self.operations:
+                if op.output_destination == dest:
+                    lineage.append(op)
+                    # Recursively find upstream
+                    for input_source in op.input_sources:
+                        find_upstream(input_source)
+        
+        find_upstream(destination)
+        return lineage
+    
+    def analyze_impact(self, source_id: str) -> List[DataOperation]:
+        """Analyze impact of changing a source (for test compatibility)"""
+        impact = []
+        visited = set()
+        
+        def find_downstream(source: str):
+            if source in visited:
+                return
+            visited.add(source)
+            
+            # Find operations that use this source
+            for op in self.operations:
+                if source in op.input_sources:
+                    impact.append(op)
+                    # Recursively find downstream
+                    find_downstream(op.output_destination)
+        
+        find_downstream(source_id)
+        return impact
 
 # Usage example and integration
 def setup_supply_chain_lineage_tracking(connection_string: str = None) -> DataLineageTracker:
@@ -839,7 +914,7 @@ def setup_supply_chain_lineage_tracking(connection_string: str = None) -> DataLi
     usda_asset = tracker.register_data_asset(
         name="USDA FoodData Central",
         asset_type="dataset",
-        source=DataSource.USDA_API,
+        source=DataSourceType.USDA_API,
         location="https://fdc.nal.usda.gov/",
         schema=usda_schema,
         metadata={
@@ -854,7 +929,7 @@ def setup_supply_chain_lineage_tracking(connection_string: str = None) -> DataLi
     iot_asset = tracker.register_data_asset(
         name="IoT Sensor Readings",
         asset_type="dataset",
-        source=DataSource.IOT_SENSORS,
+        source=DataSourceType.IOT_SENSORS,
         location="warehouse_sensors",
         schema=iot_schema,
         metadata={
@@ -887,7 +962,7 @@ if __name__ == "__main__":
         asset_id=str(uuid.uuid4()),
         name="Processed Supply Chain Data",
         asset_type="dataset",
-        source=DataSource.DATABASE,
+        source=DataSourceType.DATABASE,
         location="processed_data_table",
         schema=processed_schema,
         metadata={'description': 'Cleaned and feature-engineered supply chain data'},
@@ -902,7 +977,7 @@ if __name__ == "__main__":
     transformation_node = tracker.track_transformation(
         source_asset_ids=source_asset_ids,
         target_asset=processed_asset,
-        operation=DataOperation.FEATURE_ENGINEERING,
+        operation=DataOperationType.FEATURE_ENGINEERING,
         transformation_logic="Data cleaning, validation, and feature engineering pipeline",
         parameters={'validation_enabled': True, 'feature_engineering': True},
         metrics={'rows_processed': 10000, 'features_created': 25, 'quality_score': 0.95},
