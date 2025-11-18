@@ -225,7 +225,7 @@ class TestAdvancedPreprocessor:
         
         data = pd.DataFrame({
             'small_int': [1, 2, 3, 4, 5],  # Can be int8
-            'large_int': [1000000, 2000000, 3000000],  # Needs int32
+            'large_int': [1000000, 2000000, 3000000, 4000000, 5000000],  # Needs int32
             'float_data': [1.1, 2.2, 3.3, 4.4, 5.5],
             'category_data': ['A', 'B', 'A', 'C', 'B']
         })

@@ -267,7 +267,7 @@ class AdvancedPreprocessor:
         result_df = df.copy()
         
         numeric_columns = [col for col in columns if col in result_df.columns and 
-                          result_df[col].dtype in [np.number]]
+                          pd.api.types.is_numeric_dtype(result_df[col])]
         
         if len(numeric_columns) == 0:
             return result_df
@@ -281,7 +281,11 @@ class AdvancedPreprocessor:
         else:
             scaler = StandardScaler()
         
-        result_df[numeric_columns] = scaler.fit_transform(result_df[numeric_columns])
+        # Fit and transform the numeric columns
+        scaled_data = scaler.fit_transform(result_df[numeric_columns])
+        # Assign scaled values back to the dataframe
+        for i, col in enumerate(numeric_columns):
+            result_df[col] = scaled_data[:, i]
         return result_df
     
     def detect_outliers(self, df: pd.DataFrame, columns: List[str]) -> List[int]:

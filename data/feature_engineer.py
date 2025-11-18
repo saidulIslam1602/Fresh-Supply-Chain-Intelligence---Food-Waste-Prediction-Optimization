@@ -59,6 +59,7 @@ class AdvancedFeatureEngineer:
         self.feature_importance_scores = {}
         self.generated_features = []
         self.feature_descriptions = {}
+        self.feature_history = []  # Track feature engineering operations
         
     def engineer_features(self, df: pd.DataFrame, target_column: str = None) -> pd.DataFrame:
         """Main feature engineering pipeline"""
@@ -182,6 +183,72 @@ class AdvancedFeatureEngineer:
                     self._add_feature_description(f'{col}_trend_{window}', f'{col} deviation from {window}-period trend')
         
         return df
+    
+    def create_time_features(self, df: pd.DataFrame, timestamp_column: str) -> pd.DataFrame:
+        """Public method to create time-based features from a timestamp column"""
+        result_df = df.copy()
+        
+        if timestamp_column not in result_df.columns:
+            return result_df
+        
+        # Convert to datetime if not already
+        result_df[timestamp_column] = pd.to_datetime(result_df[timestamp_column])
+        
+        # Extract time components
+        result_df['hour'] = result_df[timestamp_column].dt.hour
+        result_df['day'] = result_df[timestamp_column].dt.day
+        result_df['month'] = result_df[timestamp_column].dt.month
+        result_df['year'] = result_df[timestamp_column].dt.year
+        result_df['dayofweek'] = result_df[timestamp_column].dt.dayofweek
+        result_df['quarter'] = result_df[timestamp_column].dt.quarter
+        result_df['is_weekend'] = (result_df[timestamp_column].dt.dayofweek >= 5).astype(int)
+        
+        self.feature_history.append(f"Created time features from {timestamp_column}")
+        return result_df
+    
+    def create_lag_features(self, df: pd.DataFrame, column: str, lags: List[int]) -> pd.DataFrame:
+        """Public method to create lag features for a specified column"""
+        result_df = df.copy()
+        
+        if column not in result_df.columns:
+            return result_df
+        
+        for lag in lags:
+            lag_col = f'{column}_lag_{lag}'
+            result_df[lag_col] = result_df[column].shift(lag)
+            self.feature_history.append(f"Created lag feature {lag_col}")
+        
+        return result_df
+    
+    def create_rolling_features(self, df: pd.DataFrame, column: str, windows: List[int]) -> pd.DataFrame:
+        """Public method to create rolling window features for a specified column"""
+        result_df = df.copy()
+        
+        if column not in result_df.columns:
+            return result_df
+        
+        for window in windows:
+            result_df[f'{column}_rolling_mean_{window}'] = result_df[column].rolling(window=window, min_periods=1).mean()
+            result_df[f'{column}_rolling_std_{window}'] = result_df[column].rolling(window=window, min_periods=1).std()
+            self.feature_history.append(f"Created rolling features for {column} with window {window}")
+        
+        return result_df
+    
+    def create_supply_chain_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Public method to create supply chain domain-specific features"""
+        return self._create_supply_chain_features(df)
+    
+    def create_interaction_features(self, df: pd.DataFrame, interaction_pairs: List[Tuple[str, str]]) -> pd.DataFrame:
+        """Public method to create interaction features between specified column pairs"""
+        result_df = df.copy()
+        
+        for col1, col2 in interaction_pairs:
+            if col1 in result_df.columns and col2 in result_df.columns:
+                interaction_col = f'{col1}_x_{col2}'
+                result_df[interaction_col] = result_df[col1] * result_df[col2]
+                self.feature_history.append(f"Created interaction feature {interaction_col}")
+        
+        return result_df
     
     def _create_supply_chain_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Create domain-specific supply chain features"""
